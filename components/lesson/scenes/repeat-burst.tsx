@@ -1,7 +1,7 @@
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
-import { Card, IconTile, PALETTE, TONE_CYCLE, useEnter } from "./kit";
+import { Card, IconTile, PALETTE, TONE_CYCLE, tabular, useSquash, useTween } from "./kit";
 
 type Props = { scene: Extract<Scene, { type: "RepeatBurst" }> };
 
@@ -9,36 +9,37 @@ const COLS = 14;
 const ROWS = 5;
 const TILE = 62;
 const GAP = 14;
+const CENTER = { c: (COLS - 1) / 2, r: (ROWS - 1) / 2 };
 
-/** "Write it once, run it N times": a mosaic fills in while the camera zooms out and a counter climbs. */
+/**
+ * "Write it once, run it N times": one tile becomes a thousand. The mosaic ripples outward from the centre
+ * while the camera pulls back with a long ease and the counter accelerates, then settles.
+ */
 export function RepeatBurst({ scene }: Props) {
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  const zoom = interpolate(frame, [12, durationInFrames * 0.6], [3.6, 1], {
-    easing: Easing.out(Easing.cubic),
+  const { speechInFrames } = useVideoConfig();
+  const zoom = interpolate(frame, [10, speechInFrames * 0.72], [3.4, 1], {
+    easing: Easing.inOutQuart,
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const progress = interpolate(frame, [12, durationInFrames * 0.7], [0, 1], {
-    easing: Easing.out(Easing.quad),
+  const progress = interpolate(frame, [14, speechInFrames * 0.78], [0, 1], {
+    easing: Easing.bezier(0.5, 0, 0.1, 1),
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
   const shown = Math.max(1, Math.round(scene.count * progress));
-  const card = useEnter(26);
+  const card = useSquash(20, { damping: 10, stiffness: 140 });
+  const centerX = (CENTER.c * (TILE + GAP) + TILE / 2) * zoom;
+  const centerY = (CENTER.r * (TILE + GAP) + TILE / 2) * zoom;
   return (
-    <SceneFrame
-      label="Why loops exist"
-      page={scene.page}
-      narration={scene.narration}
-      ambient={false}
-    >
+    <SceneFrame label="Why loops exist" page={scene.page} narration={scene.narration}>
       <div style={{ position: "relative", width: "100%", height: "100%", overflow: "hidden" }}>
         <div
           style={{
             position: "absolute",
-            left: 0,
-            top: 0,
+            left: 556 - centerX,
+            top: 190 - centerY,
             display: "grid",
             gridTemplateColumns: `repeat(${COLS}, ${TILE}px)`,
             gap: GAP,
@@ -62,19 +63,20 @@ export function RepeatBurst({ scene }: Props) {
           <Card
             tone="black"
             style={{
-              padding: "22px 44px",
+              padding: "22px 46px",
               textAlign: "center",
-              opacity: card,
-              transform: `scale(${0.86 + card * 0.14})`,
+              transform: `scale(${card.sx * card.p}, ${card.sy * card.p})`,
+              boxShadow: "0 30px 70px rgba(17,17,17,0.35)",
             }}
           >
             <div
               style={{
-                fontSize: 118,
+                fontSize: 124,
                 fontWeight: 800,
                 letterSpacing: -4,
                 lineHeight: 1,
                 color: PALETTE.orange,
+                ...tabular,
               }}
             >
               ×{shown}
@@ -88,14 +90,13 @@ export function RepeatBurst({ scene }: Props) {
 }
 
 function MosaicTile({ index, icon }: { index: number; icon: Props["scene"]["icon"] }) {
-  const p = useEnter(Math.round(index * 0.8), { damping: 12, stiffness: 160 });
+  const col = index % COLS;
+  const row = Math.floor(index / COLS);
+  const dist = Math.hypot(col - CENTER.c, (row - CENTER.r) * 1.6);
+  const p = useTween(6 + dist * 2.6, 22, Easing.backOut);
   return (
-    <div style={{ transform: `scale(${p})`, opacity: Math.min(1, p * 2) }}>
-      <IconTile
-        icon={icon}
-        tone={TONE_CYCLE[(index * 5 + Math.floor(index / COLS)) % TONE_CYCLE.length]}
-        size={TILE}
-      />
+    <div style={{ transform: `scale(${p})`, opacity: Math.min(1, p * 2.5) }}>
+      <IconTile icon={icon} tone={TONE_CYCLE[(index * 5 + row) % TONE_CYCLE.length]} size={TILE} />
     </div>
   );
 }

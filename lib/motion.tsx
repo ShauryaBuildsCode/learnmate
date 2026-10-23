@@ -13,6 +13,8 @@ export interface MotionConfig {
   durationInFrames: number;
   /** Frames the voice actually speaks for; captions track this, not the trailing pause. */
   speechInFrames: number;
+  /** The text being spoken, so animation beats can be timed to specific words. */
+  narration: string;
 }
 
 const FrameContext = createContext<{ frame: number } & MotionConfig>({
@@ -20,6 +22,7 @@ const FrameContext = createContext<{ frame: number } & MotionConfig>({
   fps: 30,
   durationInFrames: 30,
   speechInFrames: 30,
+  narration: "",
 });
 
 export function FrameProvider({
@@ -52,7 +55,35 @@ export function AbsoluteFill({ style, children }: { style?: CSSProperties; child
 
 // ---- Easing ---------------------------------------------------------------------------------
 type EasingFn = (t: number) => number;
+/** Cubic-bezier easing like CSS `cubic-bezier(x1, y1, x2, y2)`: the curve language motion designers think in. */
+function bezier(x1: number, y1: number, x2: number, y2: number): (t: number) => number {
+  const sample = (a: number, b: number, t: number) =>
+    3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+  return (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let lo = 0;
+    let hi = 1;
+    for (let i = 0; i < 24; i++) {
+      const mid = (lo + hi) / 2;
+      if (sample(x1, x2, mid) < x) lo = mid;
+      else hi = mid;
+    }
+    return sample(y1, y2, (lo + hi) / 2);
+  };
+}
+
 export const Easing = {
+  bezier,
+  /** Explosive start, long soft landing: the workhorse for entrances. */
+  expoOut: bezier(0.16, 1, 0.3, 1),
+  /** Slow-fast-slow, for camera moves and anything that travels. */
+  inOutQuart: bezier(0.77, 0, 0.175, 1),
+  /** Overshoots then settles: pops and landings. */
+  backOut: bezier(0.34, 1.56, 0.64, 1),
+  /** Gentle anticipation: dips back before launching forward. */
+  backIn: bezier(0.36, 0, 0.66, -0.56),
+  smooth: bezier(0.45, 0, 0.55, 1),
   linear: ((t) => t) as EasingFn,
   quad: ((t) => t * t) as EasingFn,
   cubic: ((t) => t * t * t) as EasingFn,
@@ -136,4 +167,85 @@ export function spring({
     x = 1 - (r2 * Math.exp(r1 * t) - r1 * Math.exp(r2 * t)) / (r2 - r1);
   }
   return overshootClamping ? Math.min(1, x) : x;
+}
+
+// ---- narration cues -------------------------------------------------------------------------
+const norm = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * Frame at which `phrase` is spoken, estimated from the narration's character timing (the same model the
+ * captions use). Lets a card, number or highlight land on the exact word instead of at a guessed delay.
+ * `lead` starts the motion a few frames early so it arrives as the word does. Falls back when the phrase
+ * isn't in the narration.
+ */
+export function cueFrame(
+  narration: string,
+  speechInFrames: number,
+  phrase: string,
+  fallback: number,
+  lead = 4,
+  /** Latest frame this beat may start at, so a phrase said late in the narration can't leave the stage waiting. */
+  max = Infinity,
+): number {
+  return Math.min(max, rawCue(narration, speechInFrames, phrase, fallback, lead));
+}
+
+function rawCue(
+  narration: string,
+  speechInFrames: number,
+  phrase: string,
+  fallback: number,
+  lead: number,
+): number {
+  const words = narration.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return fallback;
+  const weights = words.map((w) => w.length + 2);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const starts: number[] = [];
+  let acc = 0;
+  for (const w of weights) {
+    starts.push(acc);
+    acc += w;
+  }
+  const spokenAt = (i: number) => 4 + (starts[i] / total) * Math.max(8, speechInFrames - 6);
+  const tokens = words.map(norm);
+  const wanted = phrase.split(/\s+/).map(norm).filter(Boolean);
+  if (wanted.length === 0) return fallback;
+
+  // 1) the whole phrase, in order; 2) its longest word that is spoken; otherwise the fallback.
+  for (let i = 0; i + wanted.length <= tokens.length; i++) {
+    if (wanted.every((w, k) => tokens[i + k] === w)) return Math.max(2, spokenAt(i) - lead);
+  }
+  for (const word of [...wanted].sort((x, y) => y.length - x.length)) {
+    if (word.length < 4) continue;
+    const i = tokens.findIndex(
+      (t) =>
+        t === word ||
+        (word.length >= 5 && t.startsWith(word.slice(0, 5))) ||
+        // plurals and variants: "laps" finds "lap"
+        (t.length >= 3 && word.length > t.length && word.startsWith(t)),
+    );
+    if (i >= 0) return Math.max(2, spokenAt(i) - lead);
+  }
+  return fallback;
+}
+
+/** Hook form of `cueFrame` for the narration of the scene being rendered. */
+export function useCue(): (
+  phrase: string,
+  fallback: number,
+  lead?: number,
+  max?: number,
+) => number {
+  const { narration, speechInFrames } = useContext(FrameContext);
+  return (phrase, fallback, lead, max) =>
+    cueFrame(narration, speechInFrames, phrase, fallback, lead, max);
+}
+
+/**
+ * How much of a moving thing's travel is "in flight" right now: 0 when still, rising with speed. Used for
+ * squash-and-stretch: stretch along the motion while it moves, squash when it lands.
+ */
+export function velocity(frame: number, fps: number, config: SpringConfig): number {
+  return Math.abs(spring({ frame, fps, config }) - spring({ frame: frame - 1, fps, config }));
 }
