@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
+import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { ReactNode } from "react";
 import { FONT, ICON_NAMES, IconTile, PALETTE, seeded, TONE_CYCLE } from "./kit";
 
@@ -92,9 +92,13 @@ function AmbientTiles() {
   );
 }
 
+/** Three stripes that carry one scene into the next, each a few frames behind the last. */
+const STRIPES = [PALETTE.ink, PALETTE.orange, PALETTE.bg] as const;
+const wipe = Easing.inOutQuart;
+
 /**
- * Shared chrome for every scene: warm canvas, drifting tiles, an orange wipe that carries one scene
- * into the next, the scene label, a source-page tag and karaoke captions.
+ * Shared chrome for every scene: warm canvas with a parallax dot field, a slow camera push on the content,
+ * an exit that gathers the scene before the stripes sweep it away, the label, source tag and captions.
  */
 export function SceneFrame({
   label,
@@ -111,14 +115,39 @@ export function SceneFrame({
 }) {
   const frame = useCurrentFrame();
   const { durationInFrames } = useVideoConfig();
-  const wipeIn = interpolate(frame, [0, 14], [0, 100], { extrapolateRight: "clamp" });
-  const wipeOut = interpolate(frame, [durationInFrames - 12, durationInFrames], [0, 100], {
+  const t = Math.min(1, Math.max(0, frame / durationInFrames));
+
+  // Camera: a barely-there push-in over the whole scene, so nothing is ever perfectly still.
+  const push = interpolate(t, [0, 1], [1, 1.035], { easing: Easing.smooth });
+  const drift = interpolate(t, [0, 1], [0, -10], { easing: Easing.smooth });
+  // Exit: content gathers and fades just before the stripes cover it.
+  const exit = interpolate(frame, [durationInFrames - 18, durationInFrames - 5], [0, 1], {
     extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.inOutQuart,
   });
+  // Entry: the content settles in from slightly large, behind the receding stripes.
+  const enter = interpolate(frame, [4, 26], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.expoOut,
+  });
+  const contentScale = push * (1 + (1 - enter) * 0.045) * (1 - exit * 0.035);
+
   return (
-    <AbsoluteFill style={{ background: PALETTE.bg, fontFamily: FONT, color: PALETTE.ink }}>
+    <AbsoluteFill
+      style={{ background: PALETTE.bg, fontFamily: FONT, color: PALETTE.ink, overflow: "hidden" }}
+    >
+      {/* parallax dots: drift against the camera for depth */}
+      <AbsoluteFill
+        style={{
+          backgroundImage: "radial-gradient(rgba(17,17,17,0.075) 1.6px, transparent 1.6px)",
+          backgroundSize: "38px 38px",
+          backgroundPosition: `${-frame * 0.3}px ${-frame * 0.18}px`,
+        }}
+      />
       {ambient && <AmbientTiles />}
-      <div style={{ position: "absolute", top: 30, left: 44 }}>
+      <div style={{ position: "absolute", top: 30, left: 44, opacity: enter }}>
         <div
           style={{
             fontSize: 19,
@@ -143,30 +172,53 @@ export function SceneFrame({
           fontSize: 18,
           fontWeight: 600,
           color: PALETTE.ink,
+          opacity: enter,
         }}
       >
         Source: page {page}
       </div>
-      <AbsoluteFill style={{ padding: "84px 84px 214px" }}>{children}</AbsoluteFill>
+      <AbsoluteFill
+        style={{
+          padding: "84px 84px 214px",
+          opacity: 1 - exit,
+          transform: `translateY(${drift}px) scale(${contentScale})`,
+          transformOrigin: "50% 45%",
+        }}
+      >
+        {children}
+      </AbsoluteFill>
       <Captions narration={narration} />
-      {/* transition wipes */}
+      {/* stripe transition: sweeps in over the last frames, and back out over the first */}
       <AbsoluteFill style={{ pointerEvents: "none", overflow: "hidden" }}>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: PALETTE.orange,
-            transform: `translateX(${wipeIn}%)`,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            background: PALETTE.orange,
-            transform: `translateX(${-100 + wipeOut}%)`,
-          }}
-        />
+        {STRIPES.map((color, i) => {
+          const out = interpolate(
+            frame,
+            [durationInFrames - 15 + i * 2.5, durationInFrames - 3 + i * 2.5],
+            [-100, 0],
+            {
+              extrapolateLeft: "clamp",
+              extrapolateRight: "clamp",
+              easing: wipe,
+            },
+          );
+          const inn = interpolate(frame, [(2 - i) * 2.5, 13 + (2 - i) * 2.5], [0, 100], {
+            extrapolateLeft: "clamp",
+            extrapolateRight: "clamp",
+            easing: wipe,
+          });
+          const x = frame < durationInFrames / 2 ? inn : out;
+          return (
+            <div
+              key={color}
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: color,
+                transform: `translateX(${x}%)`,
+              }}
+            />
+          );
+        })}
       </AbsoluteFill>
     </AbsoluteFill>
   );

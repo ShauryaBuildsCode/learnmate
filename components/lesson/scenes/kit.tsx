@@ -21,7 +21,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { spring, useCurrentFrame, useVideoConfig } from "@/lib/motion";
+import {
+  Easing,
+  interpolate,
+  spring,
+  useCurrentFrame,
+  useVideoConfig,
+  velocity,
+} from "@/lib/motion";
 import { ANALOGY_ICONS } from "@/lib/schemas/lesson";
 
 export const PALETTE = {
@@ -176,3 +183,100 @@ export function SectionLabel({ children }: { children: ReactNode }) {
     </div>
   );
 }
+
+/** A 0..1 tween starting at `delay` over `duration` frames with any easing (backOut overshoots past 1). */
+export function useTween(
+  delay: number,
+  duration = 18,
+  easing: (t: number) => number = Easing.expoOut,
+): number {
+  const frame = useCurrentFrame();
+  return interpolate(frame, [delay, delay + duration], [0, 1], {
+    extrapolateLeft: "clamp",
+    extrapolateRight: "clamp",
+    easing,
+  });
+}
+
+/**
+ * Masked reveal: the content rises from behind a clip edge. This is the kinetic-typography staple, and
+ * reads far crisper than a fade because nothing is ever half-transparent.
+ */
+export function Reveal({
+  delay = 0,
+  duration = 20,
+  children,
+  style,
+}: {
+  delay?: number;
+  duration?: number;
+  children: ReactNode;
+  style?: CSSProperties;
+}) {
+  const p = useTween(delay, duration, Easing.expoOut);
+  return (
+    <div
+      style={{
+        overflow: "hidden",
+        display: "inline-block",
+        paddingBottom: "0.14em",
+        marginBottom: "-0.14em",
+        ...style,
+      }}
+    >
+      <div style={{ transform: `translateY(${(1 - p) * 112}%)` }}>{children}</div>
+    </div>
+  );
+}
+
+/**
+ * Squash and stretch for something that flies in: elongated along the fall while it's moving fast,
+ * a little flat on the landing bounce. Returns the transform scale to apply.
+ */
+export function useSquash(
+  delay: number,
+  config = { damping: 9, stiffness: 150 },
+): { p: number; sx: number; sy: number } {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const f = frame - delay;
+  const p = spring({ frame: f, fps, config });
+  const v = velocity(f, fps, config);
+  const stretch = Math.min(0.26, v * 16);
+  const landing = p > 1 ? Math.min(0.1, (p - 1) * 1.1) : 0;
+  return { p, sx: 1 - stretch * 0.55 + landing, sy: 1 + stretch - landing };
+}
+
+/** A path that draws itself on: stroke-dash trick with a normalised length. */
+export function DrawPath({
+  d,
+  progress,
+  stroke = PALETTE.ink,
+  width = 3,
+  dashed,
+  marker,
+}: {
+  d: string;
+  progress: number;
+  stroke?: string;
+  width?: number;
+  dashed?: boolean;
+  marker?: string;
+}) {
+  return (
+    <path
+      d={d}
+      fill="none"
+      stroke={stroke}
+      strokeWidth={width}
+      strokeLinecap="round"
+      pathLength={1}
+      strokeDasharray={dashed ? "0.012 0.02" : 1}
+      strokeDashoffset={dashed ? 0 : 1 - Math.min(1, Math.max(0, progress))}
+      opacity={dashed ? Math.min(1, progress * 3) : 1}
+      markerEnd={progress >= 0.98 ? marker : undefined}
+    />
+  );
+}
+
+export const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
