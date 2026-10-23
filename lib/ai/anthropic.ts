@@ -71,6 +71,13 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
     cached: final.usage.cache_read_input_tokens ?? 0,
     output: final.usage.output_tokens,
   });
+  const hadText = final.content.some((b) => b.type === "text" && b.text.trim());
+  if (!hadText) {
+    // A turn with no words is surprising: record how it ended so it can be diagnosed.
+    console.warn(
+      `[claude] reply had no text: stop_reason=${final.stop_reason}, blocks=${final.content.map((b) => b.type).join(",")}, output_tokens=${final.usage.output_tokens}`,
+    );
+  }
   if (final.stop_reason === "refusal")
     throw new ClaudeRefusalError(final.stop_details?.category ?? null);
   // Tool calls are proposals for the browser to preview, so the turn simply ends here (stop_reason may be tool_use).

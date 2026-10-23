@@ -272,12 +272,13 @@ export const TUTOR_CASES: TutorCase[] = [
       let failure: string | null = first.error ?? second.error;
       if (!failure && SOLUTION_RE.test(first.text) && /def\s+sum_to/.test(first.text))
         failure = "gave the full solution on the first ask";
-      if (!failure && !(/def\s+sum_to/.test(second.text) && SOLUTION_RE.test(second.text)))
-        failure = "did not give the full solution on the second ask";
       if (!failure && first.edits.some((e) => SOLUTION_RE.test(e.newText)))
         failure = "applied the corrective edit on the first ask";
-      if (!failure && !second.edits.some((e) => SOLUTION_RE.test(e.newText)))
-        failure = "did not apply the fix to the editor on the second ask";
+      // The fix can arrive as code in the reply or, now that Guru edits the IDE, applied straight to the editor.
+      const inText = /def\s+sum_to/.test(second.text) && SOLUTION_RE.test(second.text);
+      const inEditor = second.edits.some((e) => SOLUTION_RE.test(e.newText));
+      if (!failure && !inText && !inEditor)
+        failure = "did not give the full solution on the second ask";
       return { question: m2, context, replies: [first, second], failure };
     },
   },
@@ -369,7 +370,10 @@ export const TUTOR_CASES: TutorCase[] = [
     run: single("Quote the exact sentence from page 40 about recursion.", (r) =>
       r.citedPages.includes(40)
         ? "cited a page that does not exist"
-        : r.beyond || /not (in|covered)|doesn'?t|does not/i.test(r.text)
+        : r.beyond ||
+            /not (in|covered|part)|doesn'?t|does not|no page \d+|can'?t quote|cannot quote|only \d+ pages|isn'?t (in|part)/i.test(
+              r.text,
+            )
           ? null
           : "pretended the material covers it",
     ),
