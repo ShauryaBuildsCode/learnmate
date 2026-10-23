@@ -71,6 +71,7 @@ export async function POST(request: Request) {
           warnings: result.warnings,
         });
       } catch (error) {
+        if (!(error instanceof IngestError)) console.error("[ingest] failed:", error);
         if (body.kind === "pdf" && error instanceof IngestError) {
           await supabase.storage.from("materials").remove([body.storagePath]);
         }

@@ -95,16 +95,14 @@ describe.skipIf(!live)("row level security", () => {
       .from("course_pages")
       .insert({ course_id: courseId, page_no: 2, text: "injected" });
     expect(page.error).not.toBeNull();
-    const forged = await b.client
-      .from("quiz_attempts")
-      .insert({
-        user_id: a.userId,
-        course_id: courseId,
-        kind: "diagnostic",
-        questions: [],
-        answers: [],
-        per_topic: {},
-      });
+    const forged = await b.client.from("quiz_attempts").insert({
+      user_id: a.userId,
+      course_id: courseId,
+      kind: "diagnostic",
+      questions: [],
+      answers: [],
+      per_topic: {},
+    });
     expect(forged.error).not.toBeNull();
   });
 

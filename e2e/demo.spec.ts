@@ -21,7 +21,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await expect(page.getByRole("heading", { name: "Topic map" })).toBeVisible();
   await expect(page.getByText("Pages:").first()).toBeVisible();
 
-  // Diagnostic quiz: answer the first three topics (loops) wrong, everything else right.
+  // Diagnostic quiz: answer the target topic's questions wrong, everything else right.
   await page.getByRole("button", { name: "Start diagnostic quiz" }).click();
   await expect(page.getByRole("radio").first()).toBeVisible();
   const { client } = await userClient();
@@ -33,8 +33,16 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
     .limit(1)
     .single();
   const questions = quizQuestionSchema.array().parse(attempt!.questions);
-  const { data: topics } = await client.from("topics").select("id").eq("course_id", courseId).order("position");
-  const loopTopics = new Set(topics!.slice(0, 3).map((t) => t.id));
+  // The topic that owns the sum_to exercise is the one this student "doesn't understand".
+  const { data: target } = await client
+    .from("exercises")
+    .select("topic_id")
+    .eq("course_id", courseId)
+    .ilike("prompt", "%sum_to%")
+    .limit(1)
+    .single();
+  const { data: targetTopic } = await client.from("topics").select("id,name").eq("id", target!.topic_id).single();
+  const loopTopics = new Set([targetTopic!.id]);
 
   for (let i = 0; i < questions.length; i++) {
     const q = questions[i];
@@ -52,6 +60,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await expect(page.getByText("v1", { exact: true }).first()).toBeVisible();
   const firstItem = page.getByRole("region", { name: "Revision plan" }).getByRole("listitem").first();
   await expect(firstItem.getByText("weak").first()).toBeVisible();
+  await expect(firstItem.getByRole("heading", { name: targetTopic!.name })).toBeVisible();
 
   // Lesson: play to the checkpoint and the IDE opens with the exercise
   await firstItem.getByRole("link", { name: "Open lesson" }).click();
@@ -69,7 +78,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await expect(page.getByText(/exit \d/)).toBeVisible({ timeout: 120_000 });
   await page.getByRole("button", { name: "Check" }).click();
   await expect(page.getByText(/\d of \d tests passed/)).toBeVisible({ timeout: 60_000 });
-  await expect(page.getByText("0 of 3 tests passed")).toBeVisible();
+  await expect(page.getByText(/^0 of \d+ tests passed$/)).toBeVisible();
 
   // Guru: hint ladder, then a grounded question with a page citation
   const guru = page.getByRole("region", { name: "Guru, your tutor" });
@@ -82,7 +91,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   // Fix it: all tests pass and a new plan version appears with a change banner
   await setEditorCode(page, FIXED);
   await page.getByRole("button", { name: "Check" }).click();
-  await expect(page.getByText("3 of 3 tests passed")).toBeVisible({ timeout: 60_000 });
+  await expect(page.getByText(/^(\d+) of \1 tests passed$/)).toBeVisible({ timeout: 60_000 });
   await expect(page.getByText(/Plan v2 is ready/)).toBeVisible({ timeout: 120_000 });
   await page.goto(`/course/${courseId}`);
   await expect(page.getByText("What changed in v2")).toBeVisible();

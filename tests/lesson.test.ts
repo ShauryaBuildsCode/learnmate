@@ -30,12 +30,17 @@ describe("lesson script validation", () => {
     bad.scenes[0].type = "Fireworks";
     expect(lessonScriptSchema.safeParse(bad).success).toBe(false);
     const { script, dropped } = validateScript(bad, opts);
-    expect(dropped[0]).toMatchObject({ index: 0, reason: expect.stringContaining("invalid scene") });
+    expect(dropped[0]).toMatchObject({
+      index: 0,
+      reason: expect.stringContaining("invalid scene"),
+    });
     expect(script.scenes).toHaveLength(sampleLoopsLesson.scenes.length - 1);
   });
 
   it("drops a scene missing its required page", () => {
-    const bad = structuredClone(sampleLoopsLesson) as unknown as { scenes: Record<string, unknown>[] };
+    const bad = structuredClone(sampleLoopsLesson) as unknown as {
+      scenes: Record<string, unknown>[];
+    };
     delete bad.scenes[0].page;
     expect(lessonScriptSchema.safeParse(bad).success).toBe(false);
     expect(validateScript(bad, opts).dropped[0].reason).toContain("page");
@@ -44,7 +49,8 @@ describe("lesson script validation", () => {
   it("repairs near-misses: an over-long stat prefix is removed instead of failing the lesson", () => {
     const lesson = structuredClone(sampleLoopsLesson);
     const bento = lesson.scenes.find((s) => s.type === "Bento");
-    if (bento?.type === "Bento") bento.cards[1].stat = { value: 5, prefix: "about", suffix: "laps" };
+    if (bento?.type === "Bento")
+      bento.cards[1].stat = { value: 5, prefix: "about", suffix: "laps" };
     const { script, dropped } = validateScript(lesson, opts);
     expect(dropped).toEqual([]);
     const fixed = script.scenes.find((s) => s.type === "Bento");
