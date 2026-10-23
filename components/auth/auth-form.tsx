@@ -3,8 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
+import { BookOpen, Code2, Loader2, MessageCircle } from "lucide-react";
+import { AnimatedAuroraBackground } from "@/components/design/animated-aurora-background";
 import { inputClassName } from "@/components/design/input";
 import { Logo } from "@/components/design/logo";
+import { Reveal } from "@/components/design/motion-primitives";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/browser";
@@ -33,7 +36,11 @@ const COPY: Record<
   },
 };
 
-const inputClass = inputClassName;
+const BENEFITS = [
+  { icon: BookOpen, text: "Turn your own material into a focused lesson" },
+  { icon: Code2, text: "Practise beside the explanation while it is fresh" },
+  { icon: MessageCircle, text: "Ask Guru for a hint when you get stuck" },
+] as const;
 
 function Form({ mode }: { mode: Mode }) {
   const router = useRouter();
@@ -81,7 +88,7 @@ function Form({ mode }: { mode: Mode }) {
   }
 
   return (
-    <Card className="w-full max-w-sm space-y-5 p-6 shadow-md sm:p-8">
+    <Card className="auth-panel-enter surface-sheen w-full max-w-md space-y-5 rounded-3xl p-6 shadow-[0_28px_80px_-40px_rgb(var(--shadow-color)/0.38)] sm:p-8">
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">{copy.title}</h1>
         <p className="text-sm text-muted-foreground">{copy.subtitle}</p>
@@ -95,7 +102,7 @@ function Form({ mode }: { mode: Mode }) {
             aria-label="Name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className={inputClass}
+            className={inputClassName}
           />
         )}
         <input
@@ -106,7 +113,7 @@ function Form({ mode }: { mode: Mode }) {
           aria-label="Email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className={inputClass}
+          className={inputClassName}
         />
         <input
           type="password"
@@ -117,9 +124,10 @@ function Form({ mode }: { mode: Mode }) {
           aria-label="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className={inputClass}
+          className={inputClassName}
         />
-        <Button type="submit" className="w-full" disabled={busy}>
+        <Button type="submit" className="w-full" disabled={busy} aria-busy={busy}>
+          {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
           {busy ? "One moment…" : copy.cta}
         </Button>
       </form>
@@ -151,13 +159,54 @@ function Form({ mode }: { mode: Mode }) {
 
 export function AuthForm({ mode }: { mode: Mode }) {
   return (
-    <main className="bg-dots flex flex-1 flex-col items-center justify-center gap-6 p-4 sm:p-6">
-      <Link href="/" aria-label="LearnMate home" className="rounded-md">
-        <Logo />
-      </Link>
-      <Suspense>
-        <Form mode={mode} />
-      </Suspense>
+    <main className="auth-stage relative isolate flex flex-1 items-center justify-center overflow-hidden p-4 sm:p-6 lg:p-10">
+      <AnimatedAuroraBackground />
+      <div className="bg-dots pointer-events-none absolute inset-0 -z-[1] opacity-50 [mask-image:radial-gradient(ellipse_at_center,black,transparent_74%)]" />
+      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border bg-background/55 shadow-[0_32px_100px_-48px_rgb(var(--shadow-color)/0.45)] backdrop-blur-xl lg:grid-cols-[1.05fr_0.95fr]">
+        <section className="auth-story-enter relative hidden min-h-[36rem] flex-col justify-between overflow-hidden border-r p-10 lg:flex">
+          <div className="auth-story-glow" aria-hidden="true" />
+          <Link
+            href="/"
+            aria-label="LearnMate home"
+            className="relative w-fit rounded-md transition-transform duration-200 hover:scale-[1.02]"
+          >
+            <Logo />
+          </Link>
+          <div className="relative max-w-md">
+            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+              Learn with momentum
+            </p>
+            <h2 className="text-balance text-3xl font-semibold tracking-tight sm:text-4xl">
+              Your notes become somewhere to think, try and improve.
+            </h2>
+            <ul className="mt-8 space-y-4">
+              {BENEFITS.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border bg-card/70 text-foreground shadow-sm">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+          <p className="relative text-xs text-muted-foreground">
+            A calmer path from reading to understanding.
+          </p>
+        </section>
+        <Reveal className="flex min-h-[36rem] flex-col items-center justify-center gap-6 p-5 sm:p-10">
+          <Link
+            href="/"
+            aria-label="LearnMate home"
+            className="rounded-md transition-transform duration-200 hover:scale-[1.02] lg:hidden"
+          >
+            <Logo />
+          </Link>
+          <Suspense>
+            <Form mode={mode} />
+          </Suspense>
+        </Reveal>
+      </div>
     </main>
   );
 }
