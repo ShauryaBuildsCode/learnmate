@@ -54,6 +54,8 @@ export interface Overview {
     exercisesPassed: number;
     tutorQuestions: number;
     studySteps: number;
+    perfectQuiz: boolean;
+    strongTopics: number;
   };
 }
 
@@ -188,6 +190,8 @@ export async function loadOverview(supabase: Supabase): Promise<Overview> {
       exercisesPassed: courses.reduce((n, c) => n + c.exercisesPassed, 0),
       tutorQuestions: (questions.data ?? []).length,
       studySteps: (events.data ?? []).length,
+      perfectQuiz: scores.some((x) => x.total > 0 && x.correct === x.total),
+      strongTopics: courses.reduce((n, c) => n + c.levels.strong, 0),
     },
   };
 }

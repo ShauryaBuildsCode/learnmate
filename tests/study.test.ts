@@ -156,3 +156,35 @@ describe("cleanSentence", () => {
     expect(cleanSentence("Loops improved.  Next: lists.")).toBe("Loops improved. Next: lists.");
   });
 });
+
+import { computeBadges } from "@/lib/study/badges";
+describe("badges", () => {
+  const none = {
+    courses: 0,
+    quizzes: 0,
+    perfectQuiz: false,
+    exercisesPassed: 0,
+    tutorQuestions: 0,
+    currentStreak: 0,
+    longestStreak: 0,
+    studySteps: 0,
+    strongTopics: 0,
+  };
+  it("earns badges only from real activity and shows progress while locked", () => {
+    expect(computeBadges(none).filter((b) => b.earned)).toHaveLength(0);
+    const b = computeBadges({
+      ...none,
+      courses: 2,
+      quizzes: 1,
+      exercisesPassed: 3,
+      longestStreak: 3,
+    });
+    const by = Object.fromEntries(b.map((x) => [x.id, x]));
+    expect(by["first-course"].earned && by["first-quiz"].earned && by["streak-3"].earned).toBe(
+      true,
+    );
+    expect(by["coder"].earned).toBe(false);
+    expect(by["coder"].progress).toBe("3 / 5");
+    expect(by["streak-7"].earned).toBe(false);
+  });
+});

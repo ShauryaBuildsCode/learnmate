@@ -61,6 +61,14 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
+  // The Settings page can turn the voice off by default.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("learnmate:voice") === "off") setVoiceOn(false);
+    } catch {
+      // private mode: keep the default
+    }
+  }, []);
   const [scale, setScale] = useState(1);
   const frameBox = useRef<HTMLDivElement>(null);
   const audio = useRef<HTMLAudioElement | null>(null);

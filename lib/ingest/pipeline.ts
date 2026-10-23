@@ -48,6 +48,15 @@ interface Options {
 }
 
 /** Keeps only topics whose cited pages exist, so every later page reference can be trusted. */
+/** Postgres rejects the NUL character (\u0000) in text and jsonb, and PDFs sometimes contain it. Removes it, deeply. */
+export function stripNul<T>(value: T): T {
+  if (typeof value === "string") return value.replace(/\u0000/g, "") as T;
+  if (Array.isArray(value)) return value.map(stripNul) as T;
+  if (value && typeof value === "object")
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, stripNul(v)])) as T;
+  return value;
+}
+
 export function sanitizeTopics(map: TopicMap, validPages: ReadonlySet<number>): TopicMap["topics"] {
   const topics = map.topics
     .map((t) => ({
@@ -118,7 +127,7 @@ export async function ingestMaterial({
       );
     }
   }
-  const pageRows = pages.map((text, i) => ({ page_no: i + 1, text }));
+  const pageRows = pages.map((text, i) => ({ page_no: i + 1, text: stripNul(text) }));
   const validPages = new Set(pageRows.map((p) => p.page_no));
 
   progress("topics", "Finding topics…");
@@ -172,7 +181,7 @@ export async function ingestMaterial({
   try {
     const { error: pagesError } = await supabase
       .from("course_pages")
-      .insert(pageRows.map((p) => ({ course_id: course.id, ...p })));
+      .insert(pageRows.map((p) => ({ course_id: course.id, ...p, text: stripNul(p.text) })));
     if (pagesError) throw pagesError;
 
     const { data: topicRows, error: topicsError } = await supabase
@@ -187,18 +196,20 @@ export async function ingestMaterial({
         })),
       )
       .select("id,position");
-    if (topicsError || !topicRows) throw topicsError;
+    if (topicsError || !topicRows) throw topicsError ?? new Error("topics were not saved");
     const topicId = new Map(topicRows.map((r) => [r.position, r.id]));
 
     if (practice.length) {
       const { error: practiceError } = await supabase.from("practice_items").insert(
-        practice.map((p) => ({
-          course_id: course.id,
-          topic_id: topicId.get(p.topicIndex)!,
-          kind: p.item.kind,
-          data: p.item as unknown as Json,
-          page: p.page,
-        })),
+        practice
+          .filter((p) => topicId.has(p.topicIndex))
+          .map((p) => ({
+            course_id: course.id,
+            topic_id: topicId.get(p.topicIndex)!,
+            kind: p.item.kind,
+            data: stripNul(p.item) as unknown as Json,
+            page: p.page,
+          })),
       );
       if (practiceError) throw practiceError;
     }
@@ -210,15 +221,17 @@ export async function ingestMaterial({
           topic_id: topicId.get(e.topicIndex)!,
           language: e.language,
           prompt: e.prompt,
-          starter_files: e.starterFiles as unknown as Json,
-          tests: e.tests as unknown as Json,
-          hints: e.hints as unknown as Json,
+          starter_files: stripNul(e.starterFiles) as unknown as Json,
+          tests: stripNul(e.tests) as unknown as Json,
+          hints: stripNul(e.hints) as unknown as Json,
           page: e.page,
         })),
       );
       if (exerciseError) throw exerciseError;
     }
-  } catch {
+  } catch (error) {
+    // The real cause (a constraint, a bad character...) goes to the server log; the student gets a plain message.
+    console.error("[ingest] saving failed:", error);
     await supabase.from("courses").delete().eq("id", course.id);
     throw new Error("Couldn't save the course. Please try again.");
   }
