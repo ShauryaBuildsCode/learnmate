@@ -9,7 +9,7 @@ Upload a PDF chapter (or paste notes). LearnMate finds the topics, finds which o
 ## What it does
 
 1. **Ingest** a PDF (up to 20 pages / 10 MB) or pasted text. Pages are extracted one by one and stored. Gemini returns a topic map (5-8 topics with page numbers) and runnable worksheet exercises with tests.
-2. **Animated lesson** per topic. Gemini writes a JSON script that picks from a fixed library of hand-built React scenes (title, key terms, bento overview, analogy, code, variable trace, flowchart, list blocks, repeat mosaic, checkpoint). Scenes are plain React components animated on a clock, timed to a **recorded narration**: animation beats land on the words being spoken. Every scene shows and links its **source page**. Variable traces come from **really executing the code** (Pyodide), never from the model.
+2. **Animated lesson** per topic, **directed by Claude acting as an expert motion animator**. Claude chooses and orders scenes from a fixed library of hand-built React scenes (title, key terms, bento overview, analogy, code, variable trace, flowchart, list blocks, repeat mosaic, checkpoint) and writes the narration they are timed to: every on-screen label is spoken in the order it appears, and chosen emphasis words trigger camera punches and caption highlights. Scenes are plain React components animated on a clock driven by a **recorded narration**, with each beat landing on the word actually being spoken. (Gemini is the fallback director if Claude fails.) Every scene shows and links its **source page**. Variable traces come from **really executing the code** (Pyodide), never from the model.
 3. **Checkpoint** scenes pause the lesson and open a **side-along IDE** with the exercise.
 4. **IDE** in Monaco: Python, JavaScript, HTML/CSS/JS, React, C, C++, Java, Go, Rust. Run, Check (hidden tests), Reset, Ask Guru.
 5. **Guru**, a tutor that sees your code, run output and test results. Socratic by design: a 3-rung hint ladder, inline diagnostics written into the editor, a "stuck?" nudge, an understanding check after you pass.
@@ -23,7 +23,8 @@ Three AI providers, each with a clear job, behind one typed router (`lib/ai/rout
 
 | Job | Provider (default model) | Why |
 |---|---|---|
-| Content pipeline: topic map, exercises with tests, lesson scripts, quizzes, practice questions, plans, plan-change sentence, eval judge | **Gemini** (`gemini-3-flash-preview`, fallback `gemini-3.5-flash-lite`) | Strong at long-context structured JSON; cheap; the "Google AI Studio" core of the product |
+| Content pipeline: topic map, exercises with tests, quizzes, practice questions, plans, plan-change sentence, eval judge, and the fallback lesson director | **Gemini** (`gemini-3-flash-preview`, fallback `gemini-3.5-flash-lite`) | Strong at long-context structured JSON; cheap; the "Google AI Studio" core of the product |
+| **Lesson direction**: scene choice, order and the narration the animation is timed to | **Claude** (`claude-opus-5-5`, an expert-motion-animator system prompt, effort `medium`) | Directing needs taste and structure: in a side-by-side on the same topic Claude spoke every on-screen label in order (5/5, 5/5, 3/3) where Gemini missed or misordered several, and it chose emphasis words |
 | Narration (text to speech, English and Hindi) | **Gemini TTS** (`gemini-3.8-flash-tts`, with fallbacks) | Exact audio length is what drives animation timing |
 | Guru: chat, hint ladder, code review, inline diagnostics | **Claude** (`claude-opus-5-5`) | Best at patient, Socratic, grounded explanation. Adaptive thinking, explicit effort (`low` for live IDE hints, `medium` for chat), streamed |
 | Micro-tasks: typing tips, plain-English error one-liners, instant quiz-answer feedback | **Groq** (`openai/gpt-oss-20b`) | Sub-second latency |
@@ -34,7 +35,7 @@ Models come from env vars. Gemini calls fall back from the primary to a second m
 ### Prompt caching
 
 - **Claude:** persona and the whole course text lead the prompt with a 1-hour cache breakpoint, plus top-level caching of the conversation. Measured: **99% of the 3,180-token prefix is read from cache** on every call after the first.
-- **Gemini:** every content task starts with the identical full-course context so implicit caching can apply, and explicit context caching is used when the key has quota. Thinking depth defaults to `LOW` (about 7x fewer output tokens on quizzes). On the free tier explicit caching has zero quota, so **no Gemini cache hits were observed on the free key**.
+- **Gemini:** every content task starts with the identical full-course context so implicit caching can apply; a repeat lesson call showed **56% of input tokens cached** (1,729 of 3,076), though hits are not guaranteed on every call. Explicit context caching is used automatically when the key has quota (the free tier has none). Thinking depth defaults to `LOW` (about 7x fewer output tokens on quizzes).
 - **Groq:** static prompt first so its automatic prefix caching can apply (not measured).
 - Each AI call logs one line (`[ai] claude tutor: 3203 in (3180 cached, 99%) ...`).
 
@@ -63,6 +64,8 @@ flowchart LR
 - **App:** Next.js 16 (App Router), TypeScript strict, Tailwind v4.
 - **Data:** Supabase. Row Level Security on every table and on both storage buckets (`materials`, `narration`). A test proves a second user cannot read or write the first user's course, pages, attempts, tutor messages or storage.
 - **Animation:** a small in-house motion library (`lib/motion.tsx`: `spring`, `interpolate`, bezier `Easing`, narration `cue`s). No video player and no video rendering. Remotion was removed.
+- **Voice sync:** each scene's narration is recorded with Gemini TTS, and the animation clock reads the audio's playback position. Word timing is **measured from the recording**: the silent gaps are detected and matched to the punctuation by an order-preserving alignment (`lib/audio/align.ts`), then every cue and caption uses the real word times. On a real clip this placed sentence starts exactly where the earlier length-based estimate was off by up to 1.9 s. Alignment is derived from pauses, so a voice that doesn't pause at punctuation would be placed less precisely.
+- **Models direct, they don't write code:** Claude directs the lesson through a validated JSON script over the hand-built scene library. No model writes React or any executable code, so there is no injection or sandbox surface there.
 - **Code execution:** Python in a terminable Web Worker (Pyodide, 5 s hard timeout). HTML/JS in a `sandbox="allow-scripts"` iframe (never `allow-same-origin`). React headless in the same sandbox, previewed with Sandpack. C, C++, Java, Go and Rust only on onlinecompiler.io through `POST /api/run`. **User code never runs on the Next.js server.**
 - **No vector database:** a 20-page document fits in the models' context, so the full page-tagged text is sent instead. Deliberate simplicity.
 
@@ -142,7 +145,7 @@ These tests call paid APIs and write to your Supabase project (they clean up the
 
 - **Free-tier quotas.** Gemini TTS on a free key allows about 10 requests per day per model, so one lesson (one request per scene) can exhaust it. Scenes that can't be recorded fall back to the browser's voice, so a lesson can end up with mixed voices until the quota resets. A paid key removes this. Gemini text models also return overload errors at times; the fallback model and retries cover most of it.
 - **Hindi covers content, not chrome.** Lessons, quizzes, plans, Guru replies and narration switch to Hindi; buttons and labels are English.
-- **Browser voice quality** depends on the voices installed on the device (`en-IN` / `hi-IN` where available).
+- **Browser voice quality** depends on the voices installed on the device (`en-IN` / `hi-IN` where available). The browser voice has no timing data, so beats use a length-based estimate there.
 - **onlinecompiler.io free plan** allows 2 concurrent runs and 30 per minute, with a fixed 512 MB memory cap, so compiled-language Check runs tests one at a time. This is the scaling limit for compiled languages. There is no self-hosted execution cluster.
 - **Rate limits are in memory per server instance,** not shared across serverless instances.
 - **Scanned PDFs** (no text layer) are rejected with an explanation; there is no OCR.

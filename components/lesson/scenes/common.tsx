@@ -60,14 +60,22 @@ function Captions({ narration, emphasis }: { narration: string; emphasis: Set<st
         textAlign: "center",
       }}
     >
-      {words.slice(start, start + CAPTION_WORDS).map((w, i) => (
-        <span
-          key={start + i}
-          style={{ color: start + i <= current ? PALETTE.ink : "rgba(17,17,17,0.28)" }}
-        >
-          {w}{" "}
-        </span>
-      ))}
+      {words.slice(start, start + CAPTION_WORDS).map((w, i) => {
+        const lit = start + i <= current;
+        const marked = lit && emphasis.has(plain(w));
+        return (
+          <span
+            key={start + i}
+            style={{
+              color: lit ? PALETTE.ink : "rgba(17,17,17,0.28)",
+              fontWeight: marked ? 800 : undefined,
+              boxShadow: marked ? "inset 0 -0.34em 0 rgba(255,138,0,0.5)" : undefined,
+            }}
+          >
+            {w}{" "}
+          </span>
+        );
+      })}
     </div>
   );
 }
