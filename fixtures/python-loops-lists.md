@@ -2,8 +2,6 @@
 
 A short chapter for first-year students. Each section between the horizontal rules is one page.
 
----
-
 ## 1. Why we repeat things
 
 Computers are good at doing the same thing many times without getting bored. If you had to print "Hello" five times, you could write five print lines, but what about five thousand? A **loop** lets you write the instruction once and tell Python how many times to repeat it. A **list** lets you keep many values together under one name so a loop can walk through them. This chapter covers both: loops first, then lists, then how they work together.
