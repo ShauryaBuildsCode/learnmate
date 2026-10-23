@@ -11,6 +11,7 @@ export const sampleLoopsLesson: LessonScript = {
       type: "TitleCard",
       title: "Loops",
       hook: "Write it once. Run it a thousand times.",
+      emphasis: ["loop"],
       narration:
         "Welcome. Today we meet the loop, the trick that lets a computer repeat work without getting bored.",
       seconds: 6,

@@ -10,7 +10,7 @@ import { speak, speechSupported, stopSpeaking, type NarrationLang } from "@/lib/
 import { FPS, layout, sceneSeconds, speechSeconds } from "@/lib/lesson/timing";
 import { FrameProvider } from "@/lib/motion";
 import { tracePython } from "@/lib/runners/python";
-import type { LessonScript, Scene } from "@/lib/schemas/lesson";
+import { ENERGY_TEMPO, type LessonScript, type Scene } from "@/lib/schemas/lesson";
 import { cn } from "@/lib/utils";
 import { SceneRenderer } from "./scene-renderer";
 
@@ -61,6 +61,14 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
   const [playing, setPlaying] = useState(false);
   const [started, setStarted] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
+  // The Settings page can turn the voice off by default.
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("learnmate:voice") === "off") setVoiceOn(false);
+    } catch {
+      // private mode: keep the default
+    }
+  }, []);
   const [scale, setScale] = useState(1);
   const frameBox = useRef<HTMLDivElement>(null);
   const audio = useRef<HTMLAudioElement | null>(null);
@@ -396,6 +404,9 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
               durationInFrames={current.frames}
               speechInFrames={current.speechFrames}
               narration={scene.narration}
+              wordFrames={current.wordFrames}
+              emphasis={scene.emphasis}
+              tempo={ENERGY_TEMPO[scene.energy ?? "balanced"]}
             >
               <SceneRenderer key={index} scene={scene} />
             </FrameProvider>

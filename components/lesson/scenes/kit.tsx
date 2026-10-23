@@ -156,8 +156,13 @@ export function Card({
 /** Spring that starts `delay` frames into the scene and settles with a gentle overshoot. */
 export function useEnter(delay = 0, config: { damping?: number; stiffness?: number } = {}): number {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  return spring({ frame: frame - delay, fps, config: { damping: 13, stiffness: 120, ...config } });
+  const { fps, tempo = 1 } = useVideoConfig();
+  const merged = { damping: 13, stiffness: 120, ...config };
+  return spring({
+    frame: frame - delay,
+    fps,
+    config: { damping: merged.damping * tempo, stiffness: merged.stiffness * tempo * tempo },
+  });
 }
 
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -191,7 +196,8 @@ export function useTween(
   easing: (t: number) => number = Easing.expoOut,
 ): number {
   const frame = useCurrentFrame();
-  return interpolate(frame, [delay, delay + duration], [0, 1], {
+  const { tempo = 1 } = useVideoConfig();
+  return interpolate(frame, [delay, delay + duration / tempo], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing,
@@ -238,10 +244,11 @@ export function useSquash(
   config = { damping: 9, stiffness: 150 },
 ): { p: number; sx: number; sy: number } {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, tempo = 1 } = useVideoConfig();
   const f = frame - delay;
-  const p = spring({ frame: f, fps, config });
-  const v = velocity(f, fps, config);
+  const timed = { damping: config.damping * tempo, stiffness: config.stiffness * tempo * tempo };
+  const p = spring({ frame: f, fps, config: timed });
+  const v = velocity(f, fps, timed);
   const stretch = Math.min(0.26, v * 16);
   const landing = p > 1 ? Math.min(0.1, (p - 1) * 1.1) : 0;
   return { p, sx: 1 - stretch * 0.55 + landing, sy: 1 + stretch - landing };
@@ -280,3 +287,45 @@ export function DrawPath({
 }
 
 export const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
+
+/** Greedy word wrap by an estimated character budget. A word longer than the budget sits alone on its line. */
+export function wrapWords(text: string, maxChars: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && (line + " " + word).length > maxChars) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Picks the largest font size (down to `min`) at which `text` fits `width` px in at most `maxLines` lines, so
+ * long labels shrink and wrap instead of overflowing. `charW` is the average glyph width as a share of the font size
+ * (about 0.6 for the heavy weights used here). At the minimum size, text that still doesn't fit is cut with an ellipsis.
+ */
+export function fitText(
+  text: string,
+  width: number,
+  {
+    max,
+    min,
+    maxLines = 1,
+    charW = 0.6,
+  }: { max: number; min: number; maxLines?: number; charW?: number },
+): { size: number; lines: string[] } {
+  for (let size = max; size >= min; size -= 2) {
+    const lines = wrapWords(text, Math.max(1, Math.floor(width / (size * charW))));
+    if (lines.length <= maxLines && lines.every((l) => l.length * size * charW <= width))
+      return { size, lines };
+  }
+  const budget = Math.max(1, Math.floor(width / (min * charW)));
+  const lines = wrapWords(text, budget).slice(0, maxLines);
+  const last = lines.length - 1;
+  if (last >= 0 && wrapWords(text, budget).length > maxLines)
+    lines[last] = `${lines[last].slice(0, Math.max(1, budget - 1)).trimEnd()}…`;
+  return { size: min, lines };
+}

@@ -28,8 +28,8 @@ async function* gen(items: string[], failAfter?: number): AsyncGenerator<string>
 
 describe("provider router", () => {
   it("routes content to Gemini, tutoring to Claude, micro-tasks to Groq", () => {
-    expect(TASK_ROUTES.lesson_script).toBe("gemini");
-    expect(TASK_ROUTES.quiz_generate).toBe("gemini");
+    expect(TASK_ROUTES.lesson_script).toBe("claude");
+    expect(TASK_ROUTES.quiz_generate).toBe("claude");
     expect(TASK_ROUTES.tutor_chat).toBe("claude");
     expect(TASK_ROUTES.tutor_diagnose).toBe("claude");
     expect(TASK_ROUTES.quick_tip).toBe("groq");

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { sampleLoopsLesson } from "@/fixtures/sample-lesson";
 import { layout, sceneIndexAt, sceneSeconds } from "@/lib/lesson/timing";
-import { validateScript } from "@/lib/lesson/validate";
+import { isSolid, validateScript } from "@/lib/lesson/validate";
 import { lessonScriptSchema } from "@/lib/schemas/lesson";
 
 const opts = {
@@ -91,5 +91,42 @@ describe("scene timing", () => {
     expect(timed[1].from).toBe(timed[0].frames);
     expect(totalFrames).toBe(timed.reduce((n, t) => n + t.frames, 0));
     expect(sceneIndexAt(timed, timed[2].from + 1)).toBe(2);
+  });
+});
+
+describe("icon repair and the solidity gate", () => {
+  it("repairs an icon name that isn't in the library instead of dropping the scene", () => {
+    const lesson = structuredClone(sampleLoopsLesson);
+    const terms = lesson.scenes.find((s) => s.type === "KeyTerms");
+    if (terms?.type === "KeyTerms") terms.terms[0].icon = "brackets" as never;
+    const { script, dropped } = validateScript(lesson, opts);
+    expect(dropped).toEqual([]);
+    const fixed = script.scenes.find((s) => s.type === "KeyTerms");
+    expect(fixed?.type === "KeyTerms" && fixed.terms[0].icon).toBe("code");
+  });
+
+  it("falls back to a neutral icon for names it can't place", () => {
+    const lesson = structuredClone(sampleLoopsLesson);
+    const analogy = lesson.scenes.find((s) => s.type === "Analogy");
+    if (analogy?.type === "Analogy") analogy.icon = "zzz-unknown" as never;
+    const fixed = validateScript(lesson, opts).script.scenes.find((s) => s.type === "Analogy");
+    expect(fixed?.type === "Analogy" && fixed.icon).toBe("puzzle");
+  });
+
+  it("calls a lesson solid only if it kept nearly all its scenes", () => {
+    const full = validateScript(sampleLoopsLesson, opts);
+    expect(isSolid(full)).toBe(true);
+    expect(
+      isSolid({ script: { ...full.script, scenes: full.script.scenes.slice(0, 4) }, dropped: [] }),
+    ).toBe(false);
+    expect(
+      isSolid({
+        script: full.script,
+        dropped: [
+          { index: 0, reason: "x" },
+          { index: 1, reason: "y" },
+        ],
+      }),
+    ).toBe(false);
   });
 });

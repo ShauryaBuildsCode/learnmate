@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { filesSchema, languageSchema, testCaseSchema } from "@/lib/schemas/exercise";
+import { practiceItemSchema } from "@/lib/schemas/practice";
 import { toPageMap } from "@/lib/grounding";
 import { createClient } from "@/lib/supabase/server";
 import { LearnWorkspace, type LearnExercise } from "./workspace";
@@ -19,17 +20,23 @@ export default async function LearnPage({ params }: PageProps<"/learn/[topicId]"
     .maybeSingle();
   if (!topic) notFound();
 
-  const [{ data: course }, { data: pages }, { data: exerciseRows }, { data: profile }] =
-    await Promise.all([
-      supabase.from("courses").select("id,title").eq("id", topic.course_id).single(),
-      supabase
-        .from("course_pages")
-        .select("page_no,text")
-        .eq("course_id", topic.course_id)
-        .order("page_no"),
-      supabase.from("exercises").select("*").eq("topic_id", topicId).order("page"),
-      supabase.from("profiles").select("ui_lang").eq("id", user.id).maybeSingle(),
-    ]);
+  const [
+    { data: course },
+    { data: pages },
+    { data: exerciseRows },
+    { data: practiceRows },
+    { data: profile },
+  ] = await Promise.all([
+    supabase.from("courses").select("id,title,kind,language").eq("id", topic.course_id).single(),
+    supabase
+      .from("course_pages")
+      .select("page_no,text")
+      .eq("course_id", topic.course_id)
+      .order("page_no"),
+    supabase.from("exercises").select("*").eq("topic_id", topicId).order("page"),
+    supabase.from("practice_items").select("id,data,page").eq("topic_id", topicId).order("page"),
+    supabase.from("profiles").select("ui_lang").eq("id", user.id).maybeSingle(),
+  ]);
   if (!course) notFound();
 
   const exerciseIds = (exerciseRows ?? []).map((e) => e.id);
@@ -39,6 +46,19 @@ export default async function LearnPage({ params }: PageProps<"/learn/[topicId]"
         .select("exercise_id")
         .in("exercise_id", exerciseIds)
         .eq("passed", true)
+    : { data: [] };
+
+  const practice = (practiceRows ?? []).flatMap((row) => {
+    const item = practiceItemSchema.safeParse(row.data);
+    return item.success ? [{ id: row.id, page: row.page, item: item.data }] : [];
+  });
+  const practiceIds = practice.map((p) => p.id);
+  const { data: doneRows } = practiceIds.length
+    ? await supabase
+        .from("practice_answers")
+        .select("item_id")
+        .in("item_id", practiceIds)
+        .eq("correct", true)
     : { data: [] };
 
   const exercises: LearnExercise[] = (exerciseRows ?? []).flatMap((row) => {
@@ -66,6 +86,9 @@ export default async function LearnPage({ params }: PageProps<"/learn/[topicId]"
       pages={Object.fromEntries(toPageMap(pages ?? []))}
       exercises={exercises}
       passedExerciseIds={[...new Set((passedRuns ?? []).map((r) => r.exercise_id))]}
+      kind={course.kind}
+      practice={practice}
+      practiceDoneIds={[...new Set((doneRows ?? []).map((r) => r.item_id))]}
       uiLang={profile?.ui_lang ?? "en"}
     />
   );

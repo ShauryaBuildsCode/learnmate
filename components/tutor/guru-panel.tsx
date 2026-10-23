@@ -1,12 +1,13 @@
 "use client";
 
-import { AlertTriangle, Bot, Lightbulb, Loader2, ScanSearch } from "lucide-react";
+import { AlertTriangle, Bot, Lightbulb, Loader2, Pencil, ScanSearch } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageChip } from "@/components/source/source-context";
 import { Button } from "@/components/ui/button";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 import { BEYOND_PREFIX } from "@/lib/grounding";
 import type { Diagnostic } from "@/lib/schemas/diagnostic";
+import type { CodeEdit } from "@/lib/ide/edits";
 import { diagnosticSchema } from "@/lib/schemas/diagnostic";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 import { createClient } from "@/lib/supabase/browser";
@@ -29,6 +30,8 @@ interface ChatMessage {
   looked?: Looked;
   streaming?: boolean;
   error?: boolean;
+  /** How many code changes Guru made with this reply. */
+  edits?: number;
 }
 
 export interface GuruSignals {
@@ -47,6 +50,8 @@ interface Props {
   /** Increments each time the student presses "Ask Guru" in the IDE. */
   askRequest: number;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
+  /** Guru edited the code; the editor applies the change straight away and offers Undo. */
+  onEdits: (edits: CodeEdit[]) => void;
 }
 
 const MAX_RUNG = 3;
@@ -121,7 +126,17 @@ function toFrameMessage(m: ChatMessage): FrameMessage {
         )}
       </>
     ),
-    meta: m.looked && !m.streaming ? <LookedAt looked={m.looked} /> : undefined,
+    meta: (
+      <>
+        {m.edits ? (
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <Pencil className="h-3.5 w-3.5" /> Guru proposed {m.edits} change
+            {m.edits > 1 ? "s" : ""}: review it in the editor
+          </div>
+        ) : null}
+        {m.looked && !m.streaming ? <LookedAt looked={m.looked} /> : null}
+      </>
+    ),
   };
 }
 
@@ -133,8 +148,13 @@ export function GuruPanel({
   signals,
   askRequest,
   onDiagnostics,
+  onEdits,
 }: Props) {
-  const [open, setOpen] = useState(true);
+  // Closed by default so the lesson and editor get the whole screen; wide screens have room for it open.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (window.innerWidth >= 1536) setOpen(true);
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -198,6 +218,9 @@ export function GuruPanel({
             }));
           } else if (frame.t === "delta") {
             patch((m) => ({ ...m, text: m.text + frame.text }));
+          } else if (frame.t === "edit") {
+            patch((m) => ({ ...m, edits: frame.edits.length }));
+            onEdits(frame.edits);
           } else if (frame.t === "final") {
             const text = frame.text.startsWith(BEYOND_PREFIX)
               ? frame.text.slice(BEYOND_PREFIX.length).trim()
@@ -226,7 +249,7 @@ export function GuruPanel({
         setBusy(false);
       }
     },
-    [setRung],
+    [setRung, onEdits],
   );
 
   const send = useCallback(
@@ -345,6 +368,7 @@ export function GuruPanel({
   if (askRequest !== seenAsk) {
     setSeenAsk(askRequest);
     setOpen(true);
+    setOpen(true);
     setInput("Can you look at my code and tell me what to try next?");
   }
   useEffect(() => {
@@ -356,9 +380,16 @@ export function GuruPanel({
       <button
         aria-label="Open Guru"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+        className="fixed bottom-4 right-4 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
       >
-        <Bot className="h-6 w-6" />
+        <Bot className="h-5 w-5" />
+        <span className="hidden sm:inline">Ask Guru</span>
+        {nudge && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full bg-warning ring-2 ring-background"
+          />
+        )}
       </button>
     );
   }

@@ -119,4 +119,29 @@ describe.skipIf(!live)("row level security", () => {
     expect((await b.client.storage.from("materials").download(path)).error).not.toBeNull();
     await a.client.storage.from("materials").remove([path]);
   });
+
+  it("keeps notes, mind maps, checklist items and study events private (migration 0003)", async () => {
+    const own = await Promise.all([
+      a.client
+        .from("study_notes")
+        .insert({ user_id: a.userId, course_id: courseId, notes: { topics: [] } }),
+      a.client
+        .from("mind_maps")
+        .insert({ user_id: a.userId, course_id: courseId, graph: { nodes: [] } }),
+      a.client
+        .from("checklist_items")
+        .insert({ user_id: a.userId, course_id: courseId, label: "private task" }),
+      a.client
+        .from("study_events")
+        .insert({ user_id: a.userId, course_id: courseId, kind: "lesson" }),
+    ]);
+    own.forEach((r) => expect(r.error).toBeNull());
+    for (const table of ["study_notes", "mind_maps", "checklist_items", "study_events"] as const) {
+      expect((await b.client.from(table).select("id").eq("course_id", courseId)).data).toEqual([]);
+    }
+    const forged = await b.client
+      .from("checklist_items")
+      .insert({ user_id: a.userId, course_id: courseId, label: "forged" });
+    expect(forged.error).not.toBeNull();
+  });
 });

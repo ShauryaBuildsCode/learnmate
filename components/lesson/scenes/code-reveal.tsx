@@ -2,9 +2,9 @@ import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/moti
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { CodePanel, HighlightedLine } from "./highlight";
-import { lerp, MONO, PALETTE, seeded, useTween } from "./kit";
+import { fitText, lerp, MONO, PALETTE, seeded, useTween } from "./kit";
 
-const LINE_H = 46;
+const MAX_LINE_H = 46;
 
 /** Cumulative frame at which each character has been typed: quicker mid-word, a beat at line breaks. */
 function typingTimes(code: string): number[] {
@@ -26,6 +26,17 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
   const frame = useCurrentFrame();
   const { speechInFrames } = useVideoConfig();
   const lines = scene.code.split("\n");
+  // Fit the card to the 422px content area: shorter lines (and a smaller font) for longer code, and a font small
+  // enough that the widest line stays inside the panel.
+  const LINE_H = Math.max(
+    28,
+    Math.min(MAX_LINE_H, Math.floor((scene.caption ? 250 : 310) / lines.length)),
+  );
+  const widest = Math.max(...lines.map((l) => l.length), 1);
+  const FONT = Math.floor(Math.min(LINE_H * 0.65, 930 / (widest * 0.6)));
+  const caption = scene.caption
+    ? fitText(scene.caption, 880, { max: 26, min: 18, charW: 0.55 })
+    : null;
   const card = useTween(2, 28, Easing.expoOut);
 
   const times = typingTimes(scene.code);
@@ -56,7 +67,7 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
   const spot = useTween(spotStart, 18, Easing.expoOut);
   const focus = done && marks.length > 0 ? spot : 0;
   const chip = useTween(spotStart + 12, 20, Easing.backOut);
-  const focusY = (spotLine - 0.5) * LINE_H + 70;
+  const focusY = (spotLine - 0.5) * LINE_H + 56;
 
   return (
     <SceneFrame label="Code" page={scene.page} narration={scene.narration}>
@@ -107,13 +118,22 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
                       position: "relative",
                       display: "flex",
                       fontFamily: MONO,
-                      fontSize: 30,
+                      fontSize: FONT,
                       lineHeight: `${LINE_H}px`,
                       padding: "0 26px",
                       opacity: dim,
                     }}
                   >
-                    <span style={{ width: 50, color: "#6c717b", userSelect: "none" }}>{i + 1}</span>
+                    <span
+                      style={{
+                        width: FONT * 1.6,
+                        flexShrink: 0,
+                        color: "#6c717b",
+                        userSelect: "none",
+                      }}
+                    >
+                      {i + 1}
+                    </span>
                     <span style={{ whiteSpace: "pre" }}>
                       {visible[i] !== undefined && <HighlightedLine line={visible[i]} />}
                       {i === visible.length - 1 && cursorOn && !done && (
@@ -121,7 +141,7 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
                           style={{
                             display: "inline-block",
                             width: 14,
-                            height: 30,
+                            height: FONT,
                             background: PALETTE.orange,
                             verticalAlign: "middle",
                             marginLeft: 1,
@@ -134,10 +154,10 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
               })}
             </div>
           </CodePanel>
-          {scene.caption && (
+          {caption && (
             <div
               style={{
-                marginTop: 26,
+                marginTop: 14,
                 display: "flex",
                 justifyContent: "center",
                 opacity: Math.min(1, chip * 2),
@@ -146,16 +166,16 @@ export function CodeReveal({ scene }: { scene: Extract<Scene, { type: "CodeRevea
             >
               <div
                 style={{
-                  padding: "10px 26px",
+                  padding: "8px 24px",
                   borderRadius: 999,
                   background: PALETTE.orange,
                   color: "#fff",
-                  fontSize: 28,
+                  fontSize: caption.size,
                   fontWeight: 700,
                   boxShadow: "0 14px 30px rgba(255,138,0,0.35)",
                 }}
               >
-                {scene.caption}
+                {caption.lines[0]}
               </div>
             </div>
           )}

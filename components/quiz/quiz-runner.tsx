@@ -136,8 +136,8 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
     return (
       <Card className="flex items-center gap-3 text-sm" aria-busy="true">
         <Loader2 className="h-4 w-4 animate-spin" />
-        <span>Gemini is writing questions from your pages and checking every quote…</span>
-        <ProviderBadge provider="gemini" />
+        <span>Claude is writing questions from your pages and checking every quote…</span>
+        <ProviderBadge provider="claude" />
       </Card>
     );
   }

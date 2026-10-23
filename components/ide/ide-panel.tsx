@@ -2,9 +2,24 @@
 
 import dynamic from "next/dynamic";
 import { Bot, CheckCheck, RotateCcw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  type Ref,
+} from "react";
 import { CodeWorkspaceFrame } from "@/components/design/code-workspace-frame";
 import { Button } from "@/components/ui/button";
+import {
+  applyEdits,
+  describeEdits,
+  editsStillApply,
+  type CodeEdit,
+  type DiffHunk,
+} from "@/lib/ide/edits";
 import { LANGUAGE_LABELS, TEMPLATES } from "@/lib/ide-templates";
 import { runner } from "@/lib/runners";
 import { preloadPython } from "@/lib/runners/python";
@@ -19,6 +34,7 @@ import {
 } from "@/lib/schemas/exercise";
 import { cn } from "@/lib/utils";
 import { ConsolePanel, TestResultList } from "./console-panel";
+import { GuruEditNotice } from "./edit-proposal";
 import { ErrorExplainer, TipBar } from "./quick-assist";
 
 const CodeEditorView = dynamic(() => import("./code-editor").then((m) => m.CodeEditorView), {
@@ -48,20 +64,46 @@ export interface IdeSnapshot {
 
 interface Props {
   exercise: IdeExercise | null;
+  /** Language to start a blank scratch pad in. */
+  defaultLanguage?: Language;
   diagnostics: Diagnostic[];
   onSnapshot: (snapshot: IdeSnapshot) => void;
   onCheck?: (results: TestResult[], files: Files, language: Language) => void;
   onAskGuru: () => void;
+  /** Lets Guru edit the code directly. */
+  ref?: Ref<IdeHandle>;
+}
+
+/** What the workspace can ask the editor to do on Guru's behalf. */
+export interface IdeHandle {
+  /** Applies Guru's edits now. Returns false (and tells the student why) if their code has changed since. */
+  applyEdits: (edits: CodeEdit[]) => boolean;
 }
 
 type BottomTab = "console" | "tests" | "preview" | "input";
 
 /** Mount with `key={exercise.id}` so a new exercise starts from its own starter files. */
-export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru }: Props) {
-  const initialLanguage = exercise?.language ?? "python";
+export function IdePanel({
+  exercise,
+  defaultLanguage,
+  diagnostics,
+  onSnapshot,
+  onCheck,
+  onAskGuru,
+  ref,
+}: Props) {
+  const initialLanguage = exercise?.language ?? defaultLanguage ?? "python";
   const [language, setLanguage] = useState<Language>(initialLanguage);
   const [files, setFiles] = useState<Files>(exercise?.starterFiles ?? TEMPLATES[initialLanguage]);
   const [active, setActive] = useState(Object.keys(files)[0]);
+  const [undoFiles, setUndoFiles] = useState<Files | null>(null);
+  const [guruEdit, setGuruEdit] = useState<{ hunks: DiffHunk[]; failure: string | null } | null>(
+    null,
+  );
+  const filesRef = useRef(files);
+  useEffect(() => {
+    filesRef.current = files;
+  }, [files]);
   const [stdin, setStdin] = useState("");
   const [tab, setTab] = useState<BottomTab>("console");
   const [lastRun, setLastRun] = useState<RunResult | null>(null);
@@ -72,7 +114,7 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
   const isScratch = !exercise || exercise.language !== language;
   const hasPreview = language === "html" || language === "react";
 
-  useEffect(() => preloadPython(), []);
+  useEffect(() => (initialLanguage === "python" ? preloadPython() : undefined), [initialLanguage]);
 
   const load = useCallback((lang: Language, next: Files) => {
     setLanguage(lang);
@@ -129,6 +171,34 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
     ],
     [hasPreview],
   );
+
+  useImperativeHandle(ref, () => ({
+    applyEdits(edits) {
+      const current = filesRef.current;
+      if (!editsStillApply(current, edits)) {
+        setGuruEdit({
+          hunks: [],
+          failure:
+            "Your code changed while Guru was answering, so the edit was not applied. Ask Guru again.",
+        });
+        return false;
+      }
+      setUndoFiles(current);
+      setFiles(applyEdits(current, edits));
+      setActive(edits[0].file);
+      setTestResults(null);
+      setRunError(null);
+      setGuruEdit({ hunks: describeEdits(edits), failure: null });
+      return true;
+    },
+  }));
+  const undoGuruEdit = () => {
+    if (!undoFiles) return;
+    setFiles(undoFiles);
+    setUndoFiles(null);
+    setTestResults(null);
+    setGuruEdit(null);
+  };
 
   const fileNames = Object.keys(files);
   const panel = (
@@ -254,9 +324,19 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
         </>
       }
       notice={
-        exercise && !isScratch ? (
-          <p className="border-b bg-accent px-3 py-2 text-sm">{exercise.prompt}</p>
-        ) : undefined
+        <>
+          {exercise && !isScratch && (
+            <p className="border-b bg-accent px-3 py-2 text-sm">{exercise.prompt}</p>
+          )}
+          {guruEdit && (
+            <GuruEditNotice
+              hunks={guruEdit.hunks}
+              failure={guruEdit.failure}
+              onUndo={undoFiles && !guruEdit.failure ? undoGuruEdit : null}
+              onClose={() => setGuruEdit(null)}
+            />
+          )}
+        </>
       }
       editor={
         <CodeEditorView

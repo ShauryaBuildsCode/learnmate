@@ -1,22 +1,18 @@
-"use client";
+import { languageSchema } from "@/lib/schemas/exercise";
+import { createClient } from "@/lib/supabase/server";
+import { PlaygroundClient } from "./playground-client";
 
-import Link from "next/link";
-import { useCallback } from "react";
-import { IdePanel } from "@/components/ide/ide-panel";
-
-export default function PlaygroundPage() {
-  const noop = useCallback(() => {}, []);
-  return (
-    <main className="flex h-screen flex-col">
-      <header className="flex items-center gap-3 border-b px-4 py-2 text-sm">
-        <Link href="/dashboard" className="text-muted-foreground hover:underline">
-          ← Dashboard
-        </Link>
-        <h1 className="font-medium">Playground</h1>
-      </header>
-      <div className="min-h-0 flex-1">
-        <IdePanel exercise={null} diagnostics={[]} onSnapshot={noop} onAskGuru={noop} />
-      </div>
-    </main>
-  );
+/** The scratch pad opens in the language of the student's most recent coding course. */
+export default async function PlaygroundPage() {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("courses")
+    .select("language")
+    .eq("kind", "programming")
+    .not("language", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const language = languageSchema.safeParse(data?.language);
+  return <PlaygroundClient defaultLanguage={language.success ? language.data : "python"} />;
 }

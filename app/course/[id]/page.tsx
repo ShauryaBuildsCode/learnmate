@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
 import { loadCourseSnapshot } from "@/lib/course-data";
-import { toPageMap } from "@/lib/grounding";
 import { parsePlanRow } from "@/lib/plan/build";
 import { createClient } from "@/lib/supabase/server";
 import { CourseView } from "./course-view";
@@ -15,14 +14,13 @@ export default async function CoursePage({ params }: PageProps<"/course/[id]">) 
 
   const { data: course } = await supabase
     .from("courses")
-    .select("id,title,subject,page_count")
+    .select("id,title,subject,page_count,kind")
     .eq("id", id)
     .maybeSingle();
   if (!course) notFound();
 
-  const [snapshot, { data: pages }, { data: planRow }, { data: profile }] = await Promise.all([
+  const [snapshot, { data: planRow }, { data: profile }] = await Promise.all([
     loadCourseSnapshot(supabase, id),
-    supabase.from("course_pages").select("page_no,text").eq("course_id", id).order("page_no"),
     supabase
       .from("plans")
       .select("*")
@@ -37,7 +35,6 @@ export default async function CoursePage({ params }: PageProps<"/course/[id]">) 
   return (
     <CourseView
       course={course}
-      pages={Object.fromEntries(toPageMap(pages ?? []))}
       topics={snapshot.topics.map((t) => ({
         id: t.id,
         name: t.name,
@@ -54,6 +51,7 @@ export default async function CoursePage({ params }: PageProps<"/course/[id]">) 
         mastery: snapshot.attempts.length ? (mastery[t.id] ?? null) : null,
       }))}
       plan={planRow ? parsePlanRow(planRow) : null}
+      kind={course.kind}
       hasDiagnostic={snapshot.attempts.length > 0}
       uiLang={profile?.ui_lang ?? "en"}
     />
