@@ -50,6 +50,8 @@ export interface JsonRequest<T extends z.ZodType> {
   context?: string;
   prompt: string;
   schema: T;
+  /** Schema sent to Gemini to guide its output, when the validating schema is deliberately looser. */
+  apiSchema?: z.ZodType;
   /** Reasoning depth. LOW is enough for structured generation and costs far fewer tokens. */
   thinking?: "LOW" | "MEDIUM" | "HIGH";
 }
@@ -71,7 +73,7 @@ export async function geminiJson<T extends z.ZodType>(req: JsonRequest<T>): Prom
           config: {
             ...(useCache ? { cachedContent: useCache } : { systemInstruction: req.system }),
             responseMimeType: "application/json",
-            responseJsonSchema: toJsonSchema(req.schema, { relaxed: true }),
+            responseJsonSchema: toJsonSchema(req.apiSchema ?? req.schema, { relaxed: true }),
             temperature: 0.4,
             thinkingConfig: { thinkingLevel: ThinkingLevel[req.thinking ?? "LOW"] },
             httpOptions: { timeout: CALL_TIMEOUT_MS },
