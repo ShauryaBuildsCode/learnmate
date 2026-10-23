@@ -18,6 +18,7 @@ import {
 } from "@/lib/schemas/exercise";
 import { cn } from "@/lib/utils";
 import { ConsolePanel, TestResultList } from "./console-panel";
+import { ErrorExplainer, TipBar } from "./quick-assist";
 
 const CodeEditorView = dynamic(() => import("./code-editor").then((m) => m.CodeEditorView), {
   ssr: false,
@@ -202,6 +203,14 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
         />
       </div>
 
+      <TipBar
+        language={language}
+        code={Object.entries(files)
+          .map(([name, code]) => `// ${name}\n${code}`)
+          .join("\n")}
+        exercise={exercise && !isScratch ? exercise.prompt : null}
+      />
+
       <div className="flex h-56 min-h-0 flex-col border-t">
         <div role="tablist" className="flex gap-1 border-b px-2">
           {tabs.map((t) => (
@@ -220,7 +229,14 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
           ))}
         </div>
         <div className="min-h-0 flex-1 overflow-auto">
-          {tab === "console" && <ConsolePanel result={lastRun} error={runError} />}
+          {tab === "console" && (
+            <>
+              <ConsolePanel result={lastRun} error={runError} />
+              {lastRun && lastRun.exitCode !== 0 && lastRun.stderr && (
+                <ErrorExplainer language={language} stderr={lastRun.stderr} />
+              )}
+            </>
+          )}
           {tab === "tests" &&
             (testResults ? (
               <TestResultList results={testResults} />

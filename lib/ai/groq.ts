@@ -9,16 +9,21 @@ function groq() {
 }
 
 /** Sub-second micro-task completion (quick tips, error explanations, quiz feedback). */
+export const QUICK_TIMEOUT_MS = 2500;
+
 export async function groqQuick(system: string, prompt: string, maxTokens = 120): Promise<string> {
-  const response = await groq().chat.completions.create({
-    model: serverEnv().GROQ_MODEL,
-    max_tokens: maxTokens,
-    temperature: 0.3,
-    messages: [
-      { role: "system", content: system },
-      { role: "user", content: prompt },
-    ],
-  });
+  const response = await groq().chat.completions.create(
+    {
+      model: serverEnv().GROQ_MODEL,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: prompt },
+      ],
+    },
+    { timeout: QUICK_TIMEOUT_MS, maxRetries: 0 },
+  );
   return (response.choices[0]?.message?.content ?? "").trim();
 }
 

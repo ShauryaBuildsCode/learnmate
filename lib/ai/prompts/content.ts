@@ -74,3 +74,68 @@ Write an animated lesson script for this topic as JSON: {"title": string, "scene
 ${ex}
 Teach the idea with an analogy first, then code, then the trace or flowchart, then the checkpoint. Explain in simple ${args.uiLang === "hi" ? "Hindi (Devanagari script; keep code and identifiers in English)" : "English"}.`;
 }
+
+export function quizPrompt(args: {
+  pages: { page_no: number; text: string }[];
+  topics: { id: string; name: string; pages: number[] }[];
+  count: number;
+  avoid: string[];
+  uiLang: "en" | "hi";
+}): string {
+  const list = args.topics.map((t) => `- topicId "${t.id}": ${t.name} (pages ${t.pages.join(", ")})`).join("\n");
+  const avoid = args.avoid.length
+    ? `\nDo NOT repeat or rephrase any of these earlier questions:\n${args.avoid.map((q) => `- ${q}`).join("\n")}`
+    : "";
+  return `${pagesBlock(args.pages)}
+
+Topics:
+${list}
+
+Write exactly ${args.count} multiple-choice questions, covering the topics above (at least one per topic when there are enough questions). Each question has:
+- "topicId": one of the ids above.
+- "question": a clear question a beginner can answer from the material.
+- "options": exactly 4 short options, one correct, three plausible but wrong.
+- "correctIndex": 0 to 3.
+- "page": the page number where the answer is taught.
+- "quote": an EXACT sentence or phrase copied word for word from that page that supports the correct answer (10 to 40 words). Do not paraphrase the quote.
+- "explanation": one or two sentences explaining why the answer is right.
+- "id": a short unique id such as "q1".${avoid}
+Write the questions in ${args.uiLang === "hi" ? "simple Hindi (Devanagari; keep the quote exactly as it appears in the material, and keep code in English)" : "simple English"}.`;
+}
+
+export function planPrompt(args: {
+  topics: {
+    topicId: string;
+    name: string;
+    summary: string;
+    level: string;
+    score: number;
+    pages: number[];
+    exercises: { prompt: string; passed: boolean }[];
+  }[];
+  uiLang: "en" | "hi";
+}): string {
+  const lines = args.topics
+    .map(
+      (t, i) =>
+        `${i + 1}. topicId "${t.topicId}" - ${t.name} (${t.level}, mastery ${Math.round(t.score * 100)}%). Pages: ${t.pages.join(", ")}. Exercises: ${
+          t.exercises.length ? t.exercises.map((e) => `${e.passed ? "[done]" : "[todo]"} ${e.prompt}`).join(" | ") : "none"
+        }`,
+    )
+    .join("\n");
+  return `A student's revision plan. The topics are already ordered weakest first by code; keep that order.
+${lines}
+
+For each topic write: "topicId" (copy exactly), "why" (one encouraging sentence saying why this topic is in this position, using its mastery), "pagesToReread" (1 to 3 page numbers chosen only from that topic's pages), and "nextStep" (one concrete action: which lesson to watch and which exercise to do, or what to practise next). Write for the student in ${args.uiLang === "hi" ? "simple Hindi (Devanagari)" : "simple English"}.`;
+}
+
+export function changeSummaryPrompt(args: {
+  changes: { topic: string; from: string; to: string; direction: string }[];
+  nextFocus: string | null;
+  uiLang: "en" | "hi";
+}): string {
+  return `Mastery changes since the last revision plan:
+${args.changes.map((c) => `- ${c.topic}: ${c.from} -> ${c.to} (${c.direction})`).join("\n")}
+Next focus topic: ${args.nextFocus ?? "none, everything is strong"}.
+Write ONE sentence (under 30 words) for a banner telling the student what changed and what to focus on next, for example "Loops moved from weak to strong; next focus is Lists." Use only the facts above. Write in ${args.uiLang === "hi" ? "simple Hindi (Devanagari)" : "English"}.`;
+}

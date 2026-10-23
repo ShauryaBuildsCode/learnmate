@@ -48,3 +48,40 @@ export const quizQuestionSchema = z.object({
 export type QuizQuestion = z.infer<typeof quizQuestionSchema>;
 
 export const quizSchema = z.object({ questions: z.array(quizQuestionSchema).min(1).max(10) });
+
+export const planItemsSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        topicId: z.string(),
+        why: z.string().min(5).max(300),
+        pagesToReread: z.array(z.number().int().positive()).min(1).max(3),
+        nextStep: z.string().min(5).max(300),
+      }),
+    )
+    .min(1)
+    .max(8),
+});
+
+export const planItemSchema = z.object({
+  topicId: z.string(),
+  topicName: z.string(),
+  level: z.enum(["weak", "okay", "strong"]),
+  score: z.number(),
+  why: z.string(),
+  pagesToReread: z.array(z.number()),
+  nextStep: z.string(),
+  exercises: z.array(z.object({ id: z.string(), passed: z.boolean() })),
+});
+export type PlanItem = z.infer<typeof planItemSchema>;
+
+export const masteryRecordSchema = z.record(
+  z.string(),
+  z.object({
+    topicId: z.string(),
+    score: z.number(),
+    quizAccuracy: z.number().nullable(),
+    exerciseShare: z.number().nullable(),
+    level: z.enum(["weak", "okay", "strong"]),
+  }),
+);

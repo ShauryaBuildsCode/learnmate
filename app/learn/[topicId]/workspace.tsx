@@ -60,6 +60,7 @@ export function LearnWorkspace({
   const [codeVersion, setCodeVersion] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [askRequest, setAskRequest] = useState(0);
+  const [planUpdate, setPlanUpdate] = useState<{ version: number; summary: string | null } | null>(null);
   const snapshot = useRef<IdeSnapshot | null>(null);
   const scene = useRef<{ index: number; scene: Scene } | null>(null);
 
@@ -122,8 +123,22 @@ export function LearnWorkspace({
           passed: ok,
           results: results as unknown as Json,
         });
+      if (!ok) return;
+      // Passing changes mastery, so ask for a new plan version (the server only creates one if something moved).
+      try {
+        const res = await fetch("/api/plan", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ courseId: course.id, basedOn: `exercise:${activeId}`, uiLang }),
+        });
+        if (!res.ok) return;
+        const data = (await res.json()) as { created: boolean; plan: { version: number; changeSummary: string | null } };
+        if (data.created) setPlanUpdate({ version: data.plan.version, summary: data.plan.changeSummary });
+      } catch {
+        // The pass is already saved; the plan will catch up on the next change.
+      }
     },
-    [activeId, userId],
+    [activeId, userId, course.id, uiLang],
   );
 
   const getContext = useCallback((): TutorContext => {
@@ -212,6 +227,20 @@ export function LearnWorkspace({
                   onSceneChange={onSceneChange}
                 />
               </>
+            )}
+            {planUpdate && (
+              <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-success/40 bg-success/10 p-3 text-sm">
+                <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
+                <p className="flex-1">
+                  <span className="font-medium">Plan v{planUpdate.version} is ready. </span>
+                  {planUpdate.summary}
+                </p>
+                <Link href={`/course/${course.id}`}>
+                  <Button size="sm" variant="outline">
+                    See the plan
+                  </Button>
+                </Link>
+              </div>
             )}
             {exercises.length > 0 && (
               <div className="space-y-2">
