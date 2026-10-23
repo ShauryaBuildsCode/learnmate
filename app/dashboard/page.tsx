@@ -11,6 +11,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { LevelChip } from "@/components/plan/plan-view";
+import { Reveal, Stagger, StaggerItem } from "@/components/design/motion-primitives";
 import { UploadCard } from "@/components/upload/upload-card";
 import { Card } from "@/components/ui/card";
 import { SiteHeader } from "@/components/ui/site-header";
@@ -170,18 +171,24 @@ export default async function DashboardPage() {
   const first = profile?.display_name?.split(/\s+/)[0];
 
   return (
-    <>
+    <div className="dashboard-canvas min-h-screen">
       <SiteHeader />
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[1fr_340px]">
+      <main className="relative mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[1fr_340px]">
         <section className="min-w-0 space-y-6">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">{greeting(first)}</h1>
-            <p className="text-sm text-muted-foreground">
-              {o.courses.length === 0
-                ? "Let's build your first course."
-                : "Pick up where you left off, or start something new."}
-            </p>
-          </div>
+          <Reveal className="dashboard-heading relative overflow-hidden rounded-3xl border bg-card/70 p-6 shadow-sm backdrop-blur sm:p-8">
+            <div className="dashboard-heading__glow" aria-hidden="true" />
+            <div className="relative">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                Your learning space
+              </p>
+              <h1 className="text-3xl font-semibold tracking-tight">{greeting(first)}</h1>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {o.courses.length === 0
+                  ? "Let's build your first course."
+                  : "Pick up where you left off, or start something new."}
+              </p>
+            </div>
+          </Reveal>
 
           {o.courses.length > 0 && (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -225,7 +232,7 @@ export default async function DashboardPage() {
           )}
 
           {o.courses.length === 0 ? (
-            <Card className="space-y-5 border-dashed px-6 py-10 shadow-none">
+            <Card className="empty-course-state surface-sheen space-y-5 border-dashed px-6 py-10 shadow-none">
               <div className="flex flex-col items-center gap-2 text-center">
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent">
                   <BookOpen className="h-5 w-5" aria-hidden="true" />
@@ -253,18 +260,23 @@ export default async function DashboardPage() {
           ) : (
             <div className="space-y-3">
               <h2 className="text-lg font-semibold">Your courses</h2>
-              <ul className="grid gap-4 sm:grid-cols-2">
+              <Stagger className="grid gap-4 sm:grid-cols-2" role="list">
                 {o.courses.map((c) => (
-                  <li key={c.id}>
+                  <StaggerItem key={c.id} role="listitem">
                     <CourseCard c={c} />
-                  </li>
+                  </StaggerItem>
                 ))}
-              </ul>
+              </Stagger>
             </div>
           )}
         </section>
-        <UploadCard />
+        <Reveal delay={0.1} className="dashboard-upload-shell h-fit lg:sticky lg:top-24">
+          <div className="dashboard-upload-shell__glow" aria-hidden="true" />
+          <div className="relative">
+            <UploadCard />
+          </div>
+        </Reveal>
       </main>
-    </>
+    </div>
   );
 }
