@@ -386,7 +386,8 @@ export function LearnWorkspace({
             transition={{ type: "spring", stiffness: 260, damping: 32 }}
             className="min-w-0 overflow-hidden border-l"
           >
-            <div className="h-full min-w-[420px]">
+            {/* pb-16 keeps the panel clear of the floating Ask Guru button */}
+            <div className="h-full min-w-[420px] pb-16">
               {concepts ? (
                 <PracticePanel
                   userId={userId}
