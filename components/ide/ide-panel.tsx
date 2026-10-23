@@ -54,6 +54,7 @@ interface Props {
 
 type BottomTab = "console" | "tests" | "preview" | "input";
 
+/** Mount with `key={exercise.id}` so a new exercise starts from its own starter files. */
 export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru }: Props) {
   const initialLanguage = exercise?.language ?? "python";
   const [language, setLanguage] = useState<Language>(initialLanguage);
@@ -80,13 +81,6 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
     setTestResults(null);
     setTab(lang === "html" || lang === "react" ? "preview" : "console");
   }, []);
-
-  // Load a new exercise whenever the lesson hands us a different one.
-  const exerciseKey = exercise?.id ?? null;
-  useEffect(() => {
-    if (exercise) load(exercise.language, exercise.starterFiles);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exerciseKey, load]);
 
   useEffect(() => {
     onSnapshot({ language, files, lastRun, runError, testResults });

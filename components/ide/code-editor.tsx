@@ -25,7 +25,9 @@ export function CodeEditorView({ path, value, onChange, onRun, diagnostics }: Pr
   const editorRef = useRef<CodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const runRef = useRef(onRun);
-  runRef.current = onRun;
+  useEffect(() => {
+    runRef.current = onRun;
+  }, [onRun]);
 
   const onMount: OnMount = (editor, monaco) => {
     editorRef.current = editor;
