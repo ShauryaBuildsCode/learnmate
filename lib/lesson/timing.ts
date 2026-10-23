@@ -2,27 +2,41 @@ import type { Scene } from "@/lib/schemas/lesson";
 
 export const FPS = 30;
 const WORDS_PER_SECOND = 2.4;
-const PADDING_SECONDS = 1.2;
+/** Breathing room after the voice stops, so the last animation lands before the next scene. */
+export const PAUSE_SECONDS = 0.9;
 const MIN_SECONDS = 5;
 
-/** Scene length follows the narration: word count at a calm speaking pace, never shorter than the script asked for. */
-export function sceneSeconds(scene: Pick<Scene, "narration" | "seconds">): number {
+type Timable = Pick<Scene, "narration" | "seconds" | "audio">;
+
+/** How long the narration itself takes: the recording's real length, or an estimate from the word count. */
+export function speechSeconds(scene: Timable): number {
+  if (scene.audio) return scene.audio.seconds;
   const words = scene.narration.trim().split(/\s+/).filter(Boolean).length;
-  const fromWords = words / WORDS_PER_SECOND + PADDING_SECONDS;
-  return Math.max(MIN_SECONDS, scene.seconds, Math.ceil(fromWords));
+  return Math.max(
+    MIN_SECONDS - PAUSE_SECONDS,
+    scene.seconds - PAUSE_SECONDS,
+    words / WORDS_PER_SECOND,
+  );
+}
+
+/** Scene length: the voice, then a short pause. With a recording this is exact, so animation matches speech. */
+export function sceneSeconds(scene: Timable): number {
+  return speechSeconds(scene) + PAUSE_SECONDS;
 }
 
 export interface TimedScene {
   scene: Scene;
+  /** First frame of the scene on the lesson timeline. */
   from: number;
   frames: number;
+  speechFrames: number;
 }
 
 export function layout(scenes: Scene[]): { timed: TimedScene[]; totalFrames: number } {
   let from = 0;
   const timed = scenes.map((scene) => {
     const frames = Math.round(sceneSeconds(scene) * FPS);
-    const entry = { scene, from, frames };
+    const entry = { scene, from, frames, speechFrames: Math.round(speechSeconds(scene) * FPS) };
     from += frames;
     return entry;
   });

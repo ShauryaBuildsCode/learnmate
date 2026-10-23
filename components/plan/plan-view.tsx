@@ -19,7 +19,12 @@ const LEVEL_STYLE: Record<MasteryLevel, string> = {
 
 export function LevelChip({ level, score }: { level: MasteryLevel; score?: number }) {
   return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize", LEVEL_STYLE[level])}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-semibold capitalize",
+        LEVEL_STYLE[level],
+      )}
+    >
       {level}
       {score !== undefined ? ` ${Math.round(score * 100)}%` : ""}
     </span>
@@ -27,12 +32,16 @@ export function LevelChip({ level, score }: { level: MasteryLevel; score?: numbe
 }
 
 export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "hi" }) {
-  const summary = plan.items.map((i, n) => `${n + 1}. ${i.topicName}. ${i.why} ${i.nextStep}`).join(" ");
+  const summary = plan.items
+    .map((i, n) => `${n + 1}. ${i.topicName}. ${i.why} ${i.nextStep}`)
+    .join(" ");
   return (
     <section className="space-y-3" aria-label="Revision plan">
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="text-lg font-semibold">Revision plan</h2>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">v{plan.version}</span>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium">
+          v{plan.version}
+        </span>
         <ProviderBadge provider="gemini" />
         {speechSupported() && (
           <Button
@@ -47,7 +56,10 @@ export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "h
       </div>
 
       {plan.changeSummary && (
-        <div role="status" className="flex items-start gap-2 rounded-xl border border-primary/30 bg-accent p-3 text-sm">
+        <div
+          role="status"
+          className="flex items-start gap-2 rounded-xl border border-primary/30 bg-accent p-3 text-sm"
+        >
           <Info className="mt-0.5 h-4 w-4 shrink-0" />
           <p>
             <span className="font-medium">What changed in v{plan.version}: </span>
@@ -69,7 +81,10 @@ export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "h
                 </div>
                 <p className="text-sm">{item.why}</p>
                 <p className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">
-                  Re-read: {item.pagesToReread.map((p) => <PageChip key={p} page={p} />)}
+                  Re-read:{" "}
+                  {item.pagesToReread.map((p) => (
+                    <PageChip key={p} page={p} />
+                  ))}
                 </p>
                 <p className="text-sm text-muted-foreground">{item.nextStep}</p>
                 <div className="flex items-center gap-3 pt-1">

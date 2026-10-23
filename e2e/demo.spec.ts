@@ -68,8 +68,8 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   const timeline = page.locator('[role="list"] > button');
   await expect(timeline.first()).toBeVisible({ timeout: 180_000 });
   await expect(page.getByText("Source:").first()).toBeVisible();
+  // Jumping to a scene starts it; the Checkpoint pauses once its narration ends and opens the editor.
   await timeline.last().click();
-  await page.getByRole("button", { name: /play video/i }).first().click();
   await expect(page.getByRole("complementary", { name: "Code editor" })).toBeVisible({ timeout: 60_000 });
 
   // Buggy code fails

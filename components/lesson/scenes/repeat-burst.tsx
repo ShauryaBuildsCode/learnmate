@@ -1,4 +1,4 @@
-import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { Card, IconTile, PALETTE, TONE_CYCLE, useEnter } from "./kit";

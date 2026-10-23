@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
-import { spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { spring, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import { ANALOGY_ICONS } from "@/lib/schemas/lesson";
 
 export const PALETTE = {

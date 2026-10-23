@@ -1,5 +1,5 @@
 import { ArrowRight, Check } from "lucide-react";
-import { interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { Card, IconTile, lerp, PALETTE, useEnter } from "./kit";

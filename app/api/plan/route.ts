@@ -19,7 +19,11 @@ export async function POST(request: Request) {
   if (!parsed.success) return jsonError(400, "That plan request wasn't valid.");
 
   try {
-    const result = await buildPlan({ supabase: auth.supabase, userId: auth.user.id, ...parsed.data });
+    const result = await buildPlan({
+      supabase: auth.supabase,
+      userId: auth.user.id,
+      ...parsed.data,
+    });
     return NextResponse.json({ ...result, provider: "gemini" });
   } catch (error) {
     if (error instanceof NoQuizYetError) return jsonError(400, "Take the diagnostic quiz first.");

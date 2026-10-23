@@ -1,4 +1,4 @@
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { interpolate, spring, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { Card, lerp, MONO, PALETTE, useEnter } from "./kit";

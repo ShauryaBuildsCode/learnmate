@@ -22,6 +22,8 @@ const MAX_NARRATION = 600;
 /** Light, safe repairs for near-misses the model makes often; anything else is left for validation to reject. */
 function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
   const scene = { ...raw };
+  // Audio is attached by the server after recording; anything the model wrote there is made up.
+  delete scene.audio;
   if (typeof scene.narration === "string" && scene.narration.length > MAX_NARRATION) {
     scene.narration = scene.narration.slice(0, MAX_NARRATION).replace(/\s+\S*$/, "");
   }

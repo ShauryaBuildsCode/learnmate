@@ -1,4 +1,4 @@
-import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { AbsoluteFill, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { ReactNode } from "react";
 import { FONT, ICON_NAMES, IconTile, PALETTE, seeded, TONE_CYCLE } from "./kit";
 
@@ -6,16 +6,26 @@ export { FONT, MONO, PALETTE } from "./kit";
 
 const CAPTION_WORDS = 18;
 
-/** Karaoke-style captions: the words of the narration light up in step with the scene's progress. */
+/**
+ * Karaoke-style captions that follow the voice: a word lights up when the narration has spoken that
+ * share of its characters (long words take longer), across the scene's real speech length.
+ */
 function Captions({ narration }: { narration: string }) {
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
+  const { speechInFrames } = useVideoConfig();
   const words = narration.split(/\s+/).filter(Boolean);
-  const progress = interpolate(frame, [10, durationInFrames - 16], [0, words.length], {
+  const weights = words.map((w) => w.length + 2);
+  const total = weights.reduce((a, b) => a + b, 0);
+  const spoken = interpolate(frame, [4, Math.max(8, speechInFrames - 2)], [0, total], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
-  const current = Math.min(words.length - 1, Math.floor(progress));
+  let acc = 0;
+  let current = 0;
+  for (let i = 0; i < words.length; i++) {
+    acc += weights[i];
+    if (spoken >= acc - weights[i] * 0.5) current = i;
+  }
   const start = Math.floor(current / CAPTION_WORDS) * CAPTION_WORDS;
   return (
     <div

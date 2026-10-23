@@ -23,7 +23,15 @@ async function ask(body: Record<string, unknown>, signal: AbortSignal): Promise<
 }
 
 /** Groq tip after 1.5 s of idle typing. Quiet on failure: a missing tip is never an error state. */
-export function TipBar({ language, code, exercise }: { language: Language; code: string; exercise: string | null }) {
+export function TipBar({
+  language,
+  code,
+  exercise,
+}: {
+  language: Language;
+  code: string;
+  exercise: string | null;
+}) {
   const [tip, setTip] = useState<{ forCode: string; text: string } | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
   const firstRender = useRef(true);
@@ -36,7 +44,10 @@ export function TipBar({ language, code, exercise }: { language: Language; code:
     if (code.trim().length < 20) return;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
-      const text = await ask({ kind: "tip", language, code: code.slice(0, 4000), exercise }, controller.signal);
+      const text = await ask(
+        { kind: "tip", language, code: code.slice(0, 4000), exercise },
+        controller.signal,
+      );
       if (text) setTip({ forCode: code, text });
     }, IDLE_MS);
     return () => {
@@ -64,9 +75,11 @@ export function ErrorExplainer({ language, stderr }: { language: Language; stder
 
   useEffect(() => {
     const controller = new AbortController();
-    ask({ kind: "error", language, stderr: stderr.slice(0, 3000) }, controller.signal).then((text) => {
-      if (!controller.signal.aborted) setResult({ forError: stderr, text });
-    });
+    ask({ kind: "error", language, stderr: stderr.slice(0, 3000) }, controller.signal).then(
+      (text) => {
+        if (!controller.signal.aborted) setResult({ forError: stderr, text });
+      },
+    );
     return () => controller.abort();
   }, [language, stderr]);
 

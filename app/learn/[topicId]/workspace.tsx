@@ -5,7 +5,7 @@ import { ArrowLeft, CheckCircle2, PanelRightClose, PanelRightOpen, RefreshCw } f
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IdePanel, type IdeExercise, type IdeSnapshot } from "@/components/ide/ide-panel";
-import { LessonPlayer } from "@/components/lesson/lesson-player";
+import { LessonStage } from "@/components/lesson/lesson-stage";
 import { SourceProvider } from "@/components/source/source-context";
 import { GuruPanel } from "@/components/tutor/guru-panel";
 import { Button } from "@/components/ui/button";
@@ -39,7 +39,8 @@ interface Props {
 type LessonState =
   | { status: "loading" }
   | { status: "error"; message: string }
-  | { status: "ready"; script: LessonScript };
+  | { status: "recording"; script: LessonScript }
+  | { status: "ready"; script: LessonScript; audioUrls: Record<string, string> };
 
 export function LearnWorkspace({
   userId,
@@ -61,7 +62,9 @@ export function LearnWorkspace({
   const [codeVersion, setCodeVersion] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [askRequest, setAskRequest] = useState(0);
-  const [planUpdate, setPlanUpdate] = useState<{ version: number; summary: string | null } | null>(null);
+  const [planUpdate, setPlanUpdate] = useState<{ version: number; summary: string | null } | null>(
+    null,
+  );
   const snapshot = useRef<IdeSnapshot | null>(null);
   const scene = useRef<{ index: number; scene: Scene } | null>(null);
 
@@ -69,25 +72,50 @@ export function LearnWorkspace({
 
   useEffect(() => {
     const controller = new AbortController();
-    fetch("/api/lesson", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ topicId: topic.id, uiLang }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        const data = (await res.json()) as { script?: unknown; error?: string };
-        const parsed = lessonScriptSchema.safeParse(data.script);
-        if (!res.ok || !parsed.success) throw new Error(data.error ?? "The lesson wasn't usable.");
-        setLesson({ status: "ready", script: parsed.data });
-      })
-      .catch((e: unknown) => {
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        setLesson({
-          status: "error",
-          message: e instanceof Error ? e.message : "Couldn't build this lesson.",
-        });
+    const post = async (url: string) => {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topicId: topic.id, uiLang }),
+        signal: controller.signal,
       });
+      const data = (await res.json()) as { script?: unknown; error?: string };
+      return { ok: res.ok, script: lessonScriptSchema.safeParse(data.script), error: data.error };
+    };
+
+    /** Signed URLs for every recorded scene; empty when nothing is recorded (the browser voice takes over). */
+    const sign = async (script: LessonScript): Promise<Record<string, string>> => {
+      const paths = script.scenes.flatMap((sc) => (sc.audio ? [sc.audio.path] : []));
+      if (paths.length === 0) return {};
+      const { data } = await createClient().storage.from("narration").createSignedUrls(paths, 3600);
+      return Object.fromEntries(
+        (data ?? []).flatMap((d) => (d.signedUrl && d.path ? [[d.path, d.signedUrl]] : [])),
+      );
+    };
+
+    (async () => {
+      const lessonRes = await post("/api/lesson");
+      if (!lessonRes.ok || !lessonRes.script.success)
+        throw new Error(lessonRes.error ?? "The lesson wasn't usable.");
+      let script = lessonRes.script.data;
+      if (script.scenes.some((sc) => !sc.audio)) {
+        setLesson({ status: "recording", script });
+        try {
+          const voiced = await post("/api/narration");
+          if (voiced.ok && voiced.script.success) script = voiced.script.data;
+        } catch (e) {
+          if (e instanceof DOMException && e.name === "AbortError") throw e;
+          // No recording: the stage falls back to the browser's voice, so the lesson still plays.
+        }
+      }
+      setLesson({ status: "ready", script, audioUrls: await sign(script) });
+    })().catch((e: unknown) => {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setLesson({
+        status: "error",
+        message: e instanceof Error ? e.message : "Couldn't build this lesson.",
+      });
+    });
     return () => controller.abort();
   }, [topic.id, uiLang, attempt]);
 
@@ -133,8 +161,12 @@ export function LearnWorkspace({
           body: JSON.stringify({ courseId: course.id, basedOn: `exercise:${activeId}`, uiLang }),
         });
         if (!res.ok) return;
-        const data = (await res.json()) as { created: boolean; plan: { version: number; changeSummary: string | null } };
-        if (data.created) setPlanUpdate({ version: data.plan.version, summary: data.plan.changeSummary });
+        const data = (await res.json()) as {
+          created: boolean;
+          plan: { version: number; changeSummary: string | null };
+        };
+        if (data.created)
+          setPlanUpdate({ version: data.plan.version, summary: data.plan.changeSummary });
       } catch {
         // The pass is already saved; the plan will catch up on the next change.
       }
@@ -216,14 +248,24 @@ export function LearnWorkspace({
                 </Button>
               </div>
             )}
+            {lesson.status === "recording" && (
+              <div className="space-y-3" aria-busy="true">
+                <Skeleton className="aspect-video w-full" />
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <ProviderBadge provider="gemini" note="voice" />
+                  Recording the narration for &ldquo;{lesson.script.title}&rdquo;… (first time only)
+                </p>
+              </div>
+            )}
             {lesson.status === "ready" && (
               <>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <ProviderBadge provider="gemini" note="lesson script" />
                   <span>{lesson.script.title}</span>
                 </div>
-                <LessonPlayer
+                <LessonStage
                   script={lesson.script}
+                  audioUrls={lesson.audioUrls}
                   lang={uiLang}
                   onCheckpoint={onCheckpoint}
                   onSceneChange={onSceneChange}
@@ -231,7 +273,10 @@ export function LearnWorkspace({
               </>
             )}
             {planUpdate && (
-              <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-success/40 bg-success/10 p-3 text-sm">
+              <div
+                role="status"
+                className="flex flex-wrap items-center gap-3 rounded-xl border border-success/40 bg-success/10 p-3 text-sm"
+              >
                 <CheckCircle2 className="h-4 w-4 shrink-0 text-success" />
                 <p className="flex-1">
                   <span className="font-medium">Plan v{planUpdate.version} is ready. </span>

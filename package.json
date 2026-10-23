@@ -19,7 +19,6 @@
     "@codesandbox/sandpack-react": "^2.20.0",
     "@google/genai": "^2.31.0",
     "@monaco-editor/react": "^4.7.0",
-    "@remotion/player": "^4.0.538",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.118.0",
     "class-variance-authority": "^0.7.1",
@@ -33,7 +32,6 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "recharts": "^3.10.1",
-    "remotion": "^4.0.538",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"
   },
