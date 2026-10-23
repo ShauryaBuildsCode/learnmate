@@ -1,7 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
-import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
-import { publicEnv, serverEnv } from "@/lib/env";
+import { publicEnv } from "@/lib/env";
 import type { Database } from "./types";
 
 /** Session-bound client: every query runs as the signed-in user, so RLS applies. */
@@ -22,17 +21,6 @@ export async function createClient() {
           }
         },
       },
-    },
-  );
-}
-
-/** Service-role client. Bypasses RLS, so only use it in scripts and tests, never for user requests. */
-export function createServiceClient() {
-  return createAdminClient<Database>(
-    publicEnv().NEXT_PUBLIC_SUPABASE_URL,
-    serverEnv().SUPABASE_SERVICE_ROLE_KEY,
-    {
-      auth: { persistSession: false },
     },
   );
 }

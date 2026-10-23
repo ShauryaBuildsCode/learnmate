@@ -1,11 +1,11 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  Bot,
   ClipboardCheck,
   Code2,
   FileUp,
   Map,
+  MessageCircle,
   PlayCircle,
   type LucideIcon,
 } from "lucide-react";
@@ -13,6 +13,7 @@ import { Logo } from "@/components/design/logo";
 import { ProductPreview } from "@/components/design/product-preview";
 import { Card } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { createClient } from "@/lib/supabase/server";
 
 const linkButton =
   "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,opacity,transform] duration-150 active:scale-[0.98]";
@@ -43,7 +44,7 @@ const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: Code2,
     title: "Practise with Guru",
-    body: "Write Python in the built-in editor while your tutor reads your code.",
+    body: "Write code in the built-in editor while your tutor reads it.",
   },
 ];
 
@@ -51,23 +52,28 @@ const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   {
     icon: PlayCircle,
     title: "Animated lessons",
-    body: "See variables change and loops run, line by line, instead of reading about it.",
+    body: "Every topic becomes a short video with code, variables and flowcharts, each scene tied to your page.",
   },
   {
     icon: Code2,
-    title: "Live coding workspace",
-    body: "Run Python in the browser and get feedback on every exercise.",
+    title: "Practice that runs",
+    body: "Write real code beside the lesson in Python, JavaScript, React, C++, Java and more.",
   },
   {
-    icon: Bot,
-    title: "Guru, your AI tutor",
-    body: "Hints that point at the exact line you are stuck on, not generic answers.",
+    icon: MessageCircle,
+    title: "A tutor who sees your code",
+    body: "Guru asks before it tells, and says plainly when something isn't in your material.",
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
           <Link href="/" aria-label="LearnMate home" className="rounded-md">
@@ -80,12 +86,23 @@ export default function Home() {
             >
               How it works
             </a>
-            <Link
-              href="/login"
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Sign in
-            </Link>
+            {user ? (
+              <Link href="/dashboard" className={`${primaryLink} h-8 px-3`}>
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/signin"
+                  className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  Sign in
+                </Link>
+                <Link href="/signup" className={`${primaryLink} h-8 px-3`}>
+                  Sign up
+                </Link>
+              </>
+            )}
             <ThemeToggle />
           </nav>
         </div>
@@ -99,23 +116,23 @@ export default function Home() {
           />
           <div className="relative mx-auto w-full max-w-6xl px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24">
             <p className="mx-auto mb-5 w-fit rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
-              Learn Python by doing
+              Learn by doing
             </p>
             <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-              Turn your study notes into lessons you can run.
+              Turn your study material into something you can learn by doing.
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg">
-              Upload a chapter and get animated explanations, hands-on coding practice and a tutor
-              that sees your code.
+              Upload a chapter. LearnMate finds the topics, finds what you don&apos;t know yet, and
+              builds a lesson, a coding workspace and a revision plan around you.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href="/login" className={`${primaryLink} h-11 px-6`}>
-                Start learning
+              <Link href={user ? "/dashboard" : "/signup"} className={`${primaryLink} h-11 px-6`}>
+                {user ? "Open dashboard" : "Get started"}
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
-              <a href="#how-it-works" className={`${outlineLink} h-11 px-6`}>
-                See how it works
-              </a>
+              <Link href="/scenes" className={`${outlineLink} h-11 px-6`}>
+                See a lesson
+              </Link>
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-5xl px-4 pb-20 sm:px-6">
@@ -180,10 +197,10 @@ export default function Home() {
               Bring one chapter of notes. Leave with a lesson, a plan and a tutor.
             </p>
             <Link
-              href="/login"
+              href={user ? "/dashboard" : "/signup"}
               className={`${linkButton} mt-7 h-11 bg-primary-foreground px-6 text-primary hover:opacity-90`}
             >
-              Start learning
+              {user ? "Open dashboard" : "Get started"}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
           </div>
