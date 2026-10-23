@@ -38,11 +38,19 @@ interface NodeSpec {
 }
 
 function NodeShape({ node, active }: { node: NodeSpec; active: boolean }) {
-  const stroke = active ? PALETTE.warn : PALETTE.cardBorder;
-  const fill = active ? "rgba(251,191,36,0.2)" : PALETTE.card;
+  const stroke = active ? PALETTE.orange : PALETTE.ink;
+  const fill = active ? "#fff1dd" : PALETTE.card;
   const { x, y } = node.at;
   const text = (
-    <text x={x} y={y + 7} textAnchor="middle" fill={PALETTE.text} fontSize={22} fontFamily={FONT}>
+    <text
+      x={x}
+      y={y + 7}
+      textAnchor="middle"
+      fill={PALETTE.ink}
+      fontSize={22}
+      fontWeight={700}
+      fontFamily={FONT}
+    >
       {node.label}
     </text>
   );
@@ -205,14 +213,14 @@ export function FlowDiagram({ scene }: Props) {
             markerHeight="7"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill={PALETTE.muted} />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={PALETTE.ink} />
           </marker>
         </defs>
         {scene.variant === "loop" && (
           <polyline
             points="1090,236 1090,110 590,110 590,208"
             fill="none"
-            stroke={PALETTE.muted}
+            stroke={PALETTE.ink}
             strokeWidth={2.5}
             strokeDasharray="8 6"
             markerEnd="url(#arrow)"
@@ -224,13 +232,14 @@ export function FlowDiagram({ scene }: Props) {
         {nodes.map((n) => (
           <NodeShape key={n.id} node={n} active={n.id === activeId} />
         ))}
-        <circle cx={point.x} cy={point.y} r={16} fill={PALETTE.accent2} opacity={0.35} />
-        <circle cx={point.x} cy={point.y} r={9} fill={PALETTE.accent2} />
+        <circle cx={point.x} cy={point.y} r={20} fill={PALETTE.orange} opacity={0.3} />
+        <circle cx={point.x} cy={point.y} r={11} fill={PALETTE.orange} />
         {lap !== null && (
           <text
             x={1090}
             y={70}
-            fill={PALETTE.warn}
+            fill={PALETTE.orange}
+            fontWeight={800}
             fontSize={26}
             textAnchor="middle"
             fontFamily={FONT}

@@ -1,5 +1,5 @@
-import type { CSSProperties } from "react";
-import { PALETTE } from "./common";
+import type { CSSProperties, ReactNode } from "react";
+import { MONO } from "./kit";
 
 const KEYWORDS = new Set(
   "def return if elif else for while in not and or is None True False break continue pass import from as class try except finally with lambda print range len int float string void const let var function new public static main include using namespace struct fn mut".split(
@@ -7,12 +7,13 @@ const KEYWORDS = new Set(
   ),
 );
 
+// Tuned for a near-black code card: readable, calm, with the orange/purple accents of the theme.
 const COLORS = {
-  keyword: "#c084fc",
+  keyword: "#c4b5fd",
   string: "#86efac",
-  number: "#fbbf24",
-  comment: "#64748b",
-  plain: "#e2e8f0",
+  number: "#ffb347",
+  comment: "#7c828c",
+  plain: "#f1f1ee",
 };
 
 /** Tiny tokenizer: enough colour to make code readable on a video frame, with no dependencies. */
@@ -37,15 +38,15 @@ export function HighlightedLine({ line, style }: { line: string; style?: CSSProp
   );
 }
 
-export function CodePanel({ children, title }: { children: React.ReactNode; title: string }) {
+/** The black "code card": the dark counterpart to the white cards, like the black card in the reference. */
+export function CodePanel({ children, title }: { children: ReactNode; title: string }) {
   return (
     <div
       style={{
-        borderRadius: 18,
+        borderRadius: 28,
         overflow: "hidden",
-        background: "rgba(2,6,23,0.8)",
-        border: `1px solid ${PALETTE.cardBorder}`,
-        boxShadow: "0 30px 80px rgba(0,0,0,0.45)",
+        background: "#111111",
+        boxShadow: "0 24px 60px rgba(17,17,17,0.22)",
       }}
     >
       <div
@@ -53,16 +54,18 @@ export function CodePanel({ children, title }: { children: React.ReactNode; titl
           display: "flex",
           gap: 8,
           alignItems: "center",
-          padding: "12px 18px",
-          borderBottom: `1px solid ${PALETTE.cardBorder}`,
+          padding: "14px 20px",
+          borderBottom: "1px solid rgba(255,255,255,0.10)",
         }}
       >
-        {["#f87171", "#fbbf24", "#34d399"].map((c) => (
+        {["#ff5f57", "#febc2e", "#28c840"].map((c) => (
           <span key={c} style={{ width: 12, height: 12, borderRadius: 6, background: c }} />
         ))}
-        <span style={{ marginLeft: 12, color: PALETTE.muted, fontSize: 16 }}>{title}</span>
+        <span style={{ marginLeft: 12, color: "#8b8f97", fontSize: 16, fontFamily: MONO }}>
+          {title}
+        </span>
       </div>
-      <div style={{ padding: "18px 0" }}>{children}</div>
+      <div style={{ padding: "16px 0" }}>{children}</div>
     </div>
   );
 }
