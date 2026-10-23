@@ -3,11 +3,12 @@ import { z } from "zod";
 const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(1),
   GEMINI_API_KEY: z.string().min(1),
-  GEMINI_MODEL: z.string().min(1).default("gemini-3.8-flash"),
+  GEMINI_MODEL: z.string().min(1).default("gemini-3-flash-preview"),
+  GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-opus-5-5"),
   GROQ_API_KEY: z.string().min(1),
-  GROQ_MODEL: z.string().min(1).default("llama-3.3-70b-versatile"),
+  GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
   ONLINECOMPILER_API_KEY: z.string().min(1),
   ONLINECOMPILER_URL: z.string().url().default("https://api.onlinecompiler.io"),
 });
