@@ -11,6 +11,20 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
         <Link href="/dashboard" aria-label="LearnMate dashboard" className="rounded-md">
           <Logo />
         </Link>
+        <nav aria-label="Main" className="ml-2 hidden items-center gap-1 sm:flex">
+          <Link
+            href="/dashboard"
+            className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/analytics"
+            className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+          >
+            Analytics
+          </Link>
+        </nav>
         <div className="ml-auto flex items-center gap-2">
           {children}
           <LangToggle />

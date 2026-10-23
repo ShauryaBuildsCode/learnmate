@@ -87,6 +87,38 @@ export type TutorMessageRow = {
   provider: string | null;
   created_at: string;
 };
+export type StudyNotesRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  ui_lang: "en" | "hi";
+  notes: Json;
+  created_at: string;
+};
+export type MindMapRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  ui_lang: "en" | "hi";
+  graph: Json;
+  created_at: string;
+};
+export type ChecklistItemRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  label: string;
+  done: boolean;
+  created_at: string;
+};
+export type StudyEventRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  topic_id: string | null;
+  kind: "lesson" | "notes" | "mindmap";
+  created_at: string;
+};
 export type HintStateRow = { user_id: string; exercise_id: string; rung: number };
 
 type WithDefaults<Row, Optional extends keyof Row> = Omit<Row, Optional> &
@@ -109,6 +141,19 @@ export type Database = {
         WithDefaults<TutorMessageRow, "id" | "context" | "provider" | "created_at">
       >;
       hint_state: Table<HintStateRow, WithDefaults<HintStateRow, "rung">>;
+      study_notes: Table<
+        StudyNotesRow,
+        WithDefaults<StudyNotesRow, "id" | "ui_lang" | "created_at">
+      >;
+      mind_maps: Table<MindMapRow, WithDefaults<MindMapRow, "id" | "ui_lang" | "created_at">>;
+      checklist_items: Table<
+        ChecklistItemRow,
+        WithDefaults<ChecklistItemRow, "id" | "done" | "created_at">
+      >;
+      study_events: Table<
+        StudyEventRow,
+        WithDefaults<StudyEventRow, "id" | "topic_id" | "created_at">
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

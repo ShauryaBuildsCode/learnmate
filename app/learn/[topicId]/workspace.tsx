@@ -130,9 +130,23 @@ export function LearnWorkspace({
     setIdeOpen(true);
   }, []);
 
-  const onSceneChange = useCallback((index: number, s: Scene) => {
-    scene.current = { index, scene: s };
-  }, []);
+  const lessonDone = useRef(false);
+  const lastIndex = lesson.status === "ready" ? lesson.script.scenes.length - 1 : -1;
+  const onSceneChange = useCallback(
+    (index: number, s: Scene) => {
+      scene.current = { index, scene: s };
+      // The lesson counts as watched once the student reaches its checkpoint (or last scene): this ticks their checklist.
+      if (!lessonDone.current && (s.type === "Checkpoint" || index === lastIndex)) {
+        lessonDone.current = true;
+        fetch("/api/events", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ courseId: course.id, topicId: topic.id, kind: "lesson" }),
+        }).catch(() => undefined);
+      }
+    },
+    [course.id, topic.id, lastIndex],
+  );
 
   const onSnapshot = useCallback((s: IdeSnapshot) => {
     snapshot.current = s;
