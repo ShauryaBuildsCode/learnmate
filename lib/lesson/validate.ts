@@ -1,4 +1,9 @@
-import { lessonScriptSchema, type LessonScript, type Scene } from "@/lib/schemas/lesson";
+import {
+  lessonEnvelopeSchema,
+  sceneSchema,
+  type LessonScript,
+  type Scene,
+} from "@/lib/schemas/lesson";
 
 export interface ValidateOptions {
   validPages: ReadonlySet<number>;
@@ -12,15 +17,52 @@ export interface ValidatedScript {
   dropped: { index: number; reason: string }[];
 }
 
+const MAX_NARRATION = 600;
+
+/** Light, safe repairs for near-misses the model makes often; anything else is left for validation to reject. */
+function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
+  const scene = { ...raw };
+  if (typeof scene.narration === "string" && scene.narration.length > MAX_NARRATION) {
+    scene.narration = scene.narration.slice(0, MAX_NARRATION).replace(/\s+\S*$/, "");
+  }
+  if (typeof scene.seconds === "number") scene.seconds = Math.min(40, Math.max(4, scene.seconds));
+  if (scene.type === "Bento" && Array.isArray(scene.cards)) {
+    scene.cards = scene.cards.map((card: Record<string, unknown>) => {
+      const stat = card.stat as { prefix?: string; suffix?: string } | undefined;
+      if (!stat) return card;
+      return {
+        ...card,
+        stat: {
+          ...stat,
+          prefix: stat.prefix && stat.prefix.length <= 3 ? stat.prefix : undefined,
+          suffix: stat.suffix && stat.suffix.length <= 4 ? stat.suffix : undefined,
+        },
+      };
+    });
+  }
+  return scene;
+}
+
 /**
- * Applies the rules zod can't express: every scene's page must exist in the course, VariableTracker
- * code must be Python, Checkpoints must point at real exercises. Bad scenes are dropped, not repaired.
+ * Validates scene by scene so one bad scene never costs the whole lesson. A scene is dropped (and reported)
+ * when it doesn't match its type, cites a page that doesn't exist, or points a Checkpoint at an unknown
+ * exercise. The lesson only fails if fewer than 3 good scenes remain.
  */
 export function validateScript(raw: unknown, opts: ValidateOptions): ValidatedScript {
-  const parsed = lessonScriptSchema.parse(raw);
+  const envelope = lessonEnvelopeSchema.parse(raw);
   const dropped: ValidatedScript["dropped"] = [];
   const scenes: Scene[] = [];
-  parsed.scenes.forEach((scene, index) => {
+  envelope.scenes.forEach((candidate, index) => {
+    const parsed = sceneSchema.safeParse(repairScene(candidate));
+    if (!parsed.success) {
+      const issue = parsed.error.issues[0];
+      dropped.push({
+        index,
+        reason: `invalid scene (${issue.path.join(".") || "type"}: ${issue.message})`,
+      });
+      return;
+    }
+    const scene = parsed.data;
     if (!opts.validPages.has(scene.page)) {
       dropped.push({ index, reason: `page ${scene.page} does not exist` });
       return;
@@ -45,6 +87,6 @@ export function validateScript(raw: unknown, opts: ValidateOptions): ValidatedSc
       prompt: opts.exercisePrompts[id] ?? "Try the exercise.",
     });
   }
-  if (scenes.length < 3) throw new Error("Too few valid scenes remain after page validation.");
-  return { script: { title: parsed.title, scenes }, dropped };
+  if (scenes.length < 3) throw new Error("Too few valid scenes remain after validation.");
+  return { script: { title: envelope.title, scenes }, dropped };
 }

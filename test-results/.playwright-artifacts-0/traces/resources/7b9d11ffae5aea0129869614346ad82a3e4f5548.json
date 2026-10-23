@@ -1,1 +1,0 @@
-{"text":"You’re off base—Python relies on indentation, not brackets, to mark a loop’s body. The leading spaces tell the interpreter which statements stay inside. Ask Guru if you'd like more.","correct":false,"provider":"groq"}

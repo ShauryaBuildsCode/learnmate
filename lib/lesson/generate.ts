@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { geminiJson } from "@/lib/ai/gemini";
 import { CONTENT_SYSTEM, lessonPrompt, pagesBlock } from "@/lib/ai/prompts/content";
-import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
+import { lessonEnvelopeSchema, lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
 import { validateScript } from "./validate";
 
@@ -64,7 +64,8 @@ export async function getOrCreateLesson(
       allowTrace: (courseExercises ?? []).some((e) => e.language === "python"),
       uiLang,
     }),
-    schema: lessonScriptSchema,
+    schema: lessonEnvelopeSchema,
+    apiSchema: lessonScriptSchema,
   });
 
   const { script, dropped } = validateScript(raw, {

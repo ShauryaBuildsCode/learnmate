@@ -84,7 +84,10 @@ export const sceneSchema = z.discriminatedUnion("type", [
     type: z.literal("KeyTerms"),
     ...base,
     /** Words the topic is built from; icon tiles fly in and become kinetic typography. */
-    terms: z.array(z.object({ label: z.string().max(18), icon: iconSchema })).min(3).max(8),
+    terms: z
+      .array(z.object({ label: z.string().max(18), icon: iconSchema }))
+      .min(3)
+      .max(8),
   }),
   z.object({
     type: z.literal("Bento"),
@@ -95,7 +98,13 @@ export const sceneSchema = z.discriminatedUnion("type", [
         z.object({
           title: z.string().max(28),
           body: z.string().max(90).optional(),
-          stat: z.object({ value: z.number(), prefix: z.string().max(3).optional(), suffix: z.string().max(4).optional() }).optional(),
+          stat: z
+            .object({
+              value: z.number(),
+              prefix: z.string().max(3).optional(),
+              suffix: z.string().max(4).optional(),
+            })
+            .optional(),
           tone: z.enum(["light", "dark", "accent"]),
           icon: iconSchema,
         }),
@@ -136,3 +145,12 @@ export const lessonScriptSchema = z.object({
   scenes: z.array(sceneSchema).min(3).max(16),
 });
 export type LessonScript = z.infer<typeof lessonScriptSchema>;
+
+/**
+ * What we accept from the model before checking scenes one by one. Each scene is validated against
+ * `sceneSchema` separately so a single malformed scene is dropped instead of failing the lesson.
+ */
+export const lessonEnvelopeSchema = z.object({
+  title: z.string().max(200),
+  scenes: z.array(z.record(z.string(), z.unknown())).min(3).max(20),
+});

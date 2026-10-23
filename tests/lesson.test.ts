@@ -25,19 +25,36 @@ describe("lesson script validation", () => {
     expect(dropped[0]).toMatchObject({ index: 1, reason: expect.stringContaining("page 99") });
   });
 
-  it("rejects an unknown scene type", () => {
+  it("drops a scene with an unknown type but keeps the rest", () => {
     const bad = structuredClone(sampleLoopsLesson) as unknown as { scenes: { type: string }[] };
     bad.scenes[0].type = "Fireworks";
     expect(lessonScriptSchema.safeParse(bad).success).toBe(false);
-    expect(() => validateScript(bad, opts)).toThrow();
+    const { script, dropped } = validateScript(bad, opts);
+    expect(dropped[0]).toMatchObject({ index: 0, reason: expect.stringContaining("invalid scene") });
+    expect(script.scenes).toHaveLength(sampleLoopsLesson.scenes.length - 1);
   });
 
-  it("rejects a scene missing its required page", () => {
-    const bad = structuredClone(sampleLoopsLesson) as unknown as {
-      scenes: Record<string, unknown>[];
-    };
+  it("drops a scene missing its required page", () => {
+    const bad = structuredClone(sampleLoopsLesson) as unknown as { scenes: Record<string, unknown>[] };
     delete bad.scenes[0].page;
     expect(lessonScriptSchema.safeParse(bad).success).toBe(false);
+    expect(validateScript(bad, opts).dropped[0].reason).toContain("page");
+  });
+
+  it("repairs near-misses: an over-long stat prefix is removed instead of failing the lesson", () => {
+    const lesson = structuredClone(sampleLoopsLesson);
+    const bento = lesson.scenes.find((s) => s.type === "Bento");
+    if (bento?.type === "Bento") bento.cards[1].stat = { value: 5, prefix: "about", suffix: "laps" };
+    const { script, dropped } = validateScript(lesson, opts);
+    expect(dropped).toEqual([]);
+    const fixed = script.scenes.find((s) => s.type === "Bento");
+    expect(fixed?.type === "Bento" && fixed.cards[1].stat?.prefix).toBeUndefined();
+  });
+
+  it("fails only when fewer than 3 good scenes remain", () => {
+    const lesson = structuredClone(sampleLoopsLesson);
+    lesson.scenes = lesson.scenes.map((s) => ({ ...s, page: 99 }));
+    expect(() => validateScript(lesson, opts)).toThrow(/Too few/);
   });
 
   it("drops a Checkpoint pointing at an exercise that does not exist, then restores one that does", () => {
