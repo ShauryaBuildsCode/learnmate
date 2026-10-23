@@ -1,8 +1,10 @@
 "use client";
 
-import { GraduationCap } from "lucide-react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState, type FormEvent } from "react";
+import { Input } from "@/components/design/input";
+import { Logo } from "@/components/design/logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { createClient } from "@/lib/supabase/browser";
@@ -47,32 +49,32 @@ function LoginForm() {
   }
 
   return (
-    <Card className="w-full max-w-sm space-y-4">
-      <div className="flex items-center gap-2">
-        <GraduationCap className="h-6 w-6 text-primary" />
-        <h1 className="text-xl font-semibold">LearnMate</h1>
+    <Card className="w-full max-w-sm space-y-5 p-6 shadow-md sm:p-8">
+      <div className="space-y-2">
+        <Link href="/" aria-label="LearnMate home" className="inline-block rounded-md">
+          <Logo />
+        </Link>
+        <h1 className="text-2xl font-semibold tracking-tight">Welcome back</h1>
+        <p className="text-sm text-muted-foreground">
+          Turn any chapter into animated lessons, hands-on practice and a tutor that sees your code.
+        </p>
       </div>
-      <p className="text-sm text-muted-foreground">
-        Turn any chapter into animated lessons, hands-on practice and a tutor that sees your code.
-      </p>
       <form onSubmit={submit} className="space-y-3">
-        <input
+        <Input
           type="email"
           required
           placeholder="you@example.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
           aria-label="Email"
         />
         {mode === "password" && (
-          <input
+          <Input
             type="password"
             required
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-10 w-full rounded-lg border bg-background px-3 text-sm"
             aria-label="Password"
           />
         )}
@@ -80,18 +82,23 @@ function LoginForm() {
           {mode === "magic" ? "Email me a magic link" : "Sign in"}
         </Button>
       </form>
+      <div className="flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">
+        <span className="h-px flex-1 bg-border" />
+        or
+        <span className="h-px flex-1 bg-border" />
+      </div>
       <Button variant="outline" className="w-full" onClick={google}>
         Continue with Google
       </Button>
       <button
         type="button"
-        className="w-full text-xs text-muted-foreground underline"
+        className="w-full rounded-md py-1 text-xs text-muted-foreground underline underline-offset-4 transition-colors hover:text-foreground"
         onClick={() => setMode(mode === "magic" ? "password" : "magic")}
       >
         {mode === "magic" ? "Use a password instead" : "Use a magic link instead"}
       </button>
       {message && (
-        <p role="status" className="text-sm text-muted-foreground">
+        <p role="status" className="rounded-lg border bg-muted px-3 py-2 text-sm">
           {message}
         </p>
       )}
@@ -101,7 +108,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <main className="bg-dots flex flex-1 items-center justify-center p-4 sm:p-6">
       <Suspense>
         <LoginForm />
       </Suspense>
