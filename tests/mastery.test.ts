@@ -86,6 +86,16 @@ describe("plan ordering", () => {
   });
 });
 
+describe("plan ordering tie-break", () => {
+  it("ranks a topic below equally-scored topics once its exercises are done", () => {
+    const quizAll = [quiz({ loops: { correct: 0, total: 1 }, lists: { correct: 1, total: 1 }, intro: { correct: 1, total: 1 } })];
+    // loops: quiz 0 + exercises 1/1 => 0.5 ; lists: quiz 1 + exercises 0/1 => 0.5
+    const m = computeMastery(topics, quizAll, new Set(["e1", "e2"]));
+    const order = orderWeakestFirst(m, topics).map((x) => x.topicId);
+    expect(order.indexOf("loops")).toBeGreaterThan(order.indexOf("lists"));
+  });
+});
+
 describe("plan diff", () => {
   const v1 = computeMastery(
     topics,

@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { geminiJson } from "@/lib/ai/gemini";
-import { CONTENT_SYSTEM, lessonPrompt } from "@/lib/ai/prompts/content";
+import { CONTENT_SYSTEM, lessonPrompt, pagesBlock } from "@/lib/ai/prompts/content";
 import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
 import { validateScript } from "./validate";
@@ -55,9 +55,10 @@ export async function getOrCreateLesson(
   const raw = await geminiJson({
     task: "lesson script",
     system: CONTENT_SYSTEM,
+    // Always the whole course, in the same order, so the cached prefix is shared by every task.
+    context: pagesBlock(pages),
     prompt: lessonPrompt({
       topic,
-      pages: pages.filter((p) => relevant.has(p.page_no)),
       validPages: [...relevant].sort((a, b) => a - b),
       exercises,
       allowTrace: (courseExercises ?? []).some((e) => e.language === "python"),

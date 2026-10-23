@@ -14,29 +14,22 @@ export function pagesBlock(pages: { page_no: number; text: string }[]): string {
   );
 }
 
-export function topicMapPrompt(
-  pages: { page_no: number; text: string }[],
-  fallbackTitle: string,
-): string {
-  return `${pagesBlock(pages)}
-
-Task: structure this material into a topic map.
+/** Task prompts below deliberately exclude the course pages: those go in the shared, cacheable context. */
+export function topicMapPrompt(fallbackTitle: string): string {
+  return `Task: structure this material into a topic map.
 - "title": a short course title (use "${fallbackTitle}" if the material has none).
 - "subject": the single subject area (for example "Python programming").
 - "topics": between 5 and 8 topics, in the order a student should learn them. Each has a short "name", a one-sentence "summary" a beginner can understand, and "pages": the page numbers (from the <page n=...> tags) where the topic is taught. Cover every important part of the material. Worksheets or exercise pages belong to the topic they practise.`;
 }
 
 export function exercisesPrompt(
-  pages: { page_no: number; text: string }[],
   topics: { name: string; summary: string; pages: number[] }[],
 ): string {
   const list = topics.map((t, i) => `${i}: ${t.name} (pages ${t.pages.join(", ")})`).join("\n");
-  return `${pagesBlock(pages)}
-
-Topics (use the number before the colon as "topicIndex"):
+  return `Topics (use the number before the colon as "topicIndex"):
 ${list}
 
-Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches.
+Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches. Make sure EVERY topic ends up with at least one exercise: when the worksheet does not cover a topic, write one small extra practice exercise for it from that topic's pages.
 For each exercise:
 - "language": the programming language the material uses (python, javascript, html, react, c, cpp, java, go or rust).
 - "prompt": the task in plain English, including the exact function name and what it must return.
@@ -50,7 +43,6 @@ For each exercise:
 
 export function lessonPrompt(args: {
   topic: { name: string; summary: string; pages: number[] };
-  pages: { page_no: number; text: string }[];
   validPages: number[];
   exercises: { id: string; prompt: string; language: string }[];
   allowTrace: boolean;
@@ -59,10 +51,8 @@ export function lessonPrompt(args: {
   const ex = args.exercises.length
     ? args.exercises.map((e) => `- id "${e.id}" (${e.language}): ${e.prompt}`).join("\n")
     : "(no exercises)";
-  return `${pagesBlock(args.pages)}
-
-Topic: ${args.topic.name}. ${args.topic.summary}
-Valid source pages: ${args.validPages.join(", ")}
+  return `Topic: ${args.topic.name}. ${args.topic.summary}
+Valid source pages: ${args.validPages.join(", ")} (the other pages are context only; draw scenes from the valid pages)
 
 Write an animated lesson script for this topic as JSON: {"title": string, "scenes": [...]}. 6 to 9 scenes, a few minutes in total, using ONLY these scene types (each scene needs "type", "narration" (1 to 3 spoken sentences), "seconds" (6 to 14) and "page" (one of the valid source pages where the scene's content comes from)):
 - TitleCard: {title, hook}. Always first.
@@ -76,7 +66,6 @@ Teach the idea with an analogy first, then code, then the trace or flowchart, th
 }
 
 export function quizPrompt(args: {
-  pages: { page_no: number; text: string }[];
   topics: { id: string; name: string; pages: number[] }[];
   count: number;
   avoid: string[];
@@ -88,9 +77,7 @@ export function quizPrompt(args: {
   const avoid = args.avoid.length
     ? `\nDo NOT repeat or rephrase any of these earlier questions:\n${args.avoid.map((q) => `- ${q}`).join("\n")}`
     : "";
-  return `${pagesBlock(args.pages)}
-
-Topics:
+  return `Topics:
 ${list}
 
 Write exactly ${args.count} multiple-choice questions, covering the topics above (at least one per topic when there are enough questions). Each question has:

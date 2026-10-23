@@ -69,14 +69,20 @@ export function computeMastery(
   });
 }
 
-/** Weakest first. Ties keep the course's own topic order. */
+/**
+ * Weakest first. At equal mastery, a topic with exercises still to do comes before one whose exercises
+ * are done, and any remaining tie keeps the course's own topic order.
+ */
 export function orderWeakestFirst(
   mastery: TopicMastery[],
   topics: Pick<TopicRef, "id" | "position">[],
 ): TopicMastery[] {
   const position = new Map(topics.map((t) => [t.id, t.position]));
   return [...mastery].sort(
-    (a, b) => a.score - b.score || (position.get(a.topicId) ?? 0) - (position.get(b.topicId) ?? 0),
+    (a, b) =>
+      a.score - b.score ||
+      (a.exerciseShare ?? 1) - (b.exerciseShare ?? 1) ||
+      (position.get(a.topicId) ?? 0) - (position.get(b.topicId) ?? 0),
   );
 }
 

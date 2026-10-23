@@ -1,0 +1,1 @@
+{"kind":"tip","language":"python","code":"// main.py\ndef sum_to(n):\n    total = 0\n    for i in range(1, n):\n        total += i\n    return total\n","exercise":null}

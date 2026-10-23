@@ -1,5 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CONTENT_SYSTEM, exercisesPrompt, topicMapPrompt } from "@/lib/ai/prompts/content";
+import {
+  CONTENT_SYSTEM,
+  exercisesPrompt,
+  pagesBlock,
+  topicMapPrompt,
+} from "@/lib/ai/prompts/content";
 import { geminiJson } from "@/lib/ai/gemini";
 import { AiOutputError } from "@/lib/ai/types";
 import {
@@ -103,7 +108,8 @@ export async function ingestMaterial({
   const map = await geminiJson({
     task: "topic map",
     system: CONTENT_SYSTEM,
-    prompt: topicMapPrompt(pageRows, fallbackTitle),
+    context: pagesBlock(pageRows),
+    prompt: topicMapPrompt(fallbackTitle),
     schema: topicMapSchema,
   });
   const topics = sanitizeTopics(map, validPages);
@@ -112,7 +118,9 @@ export async function ingestMaterial({
   const exerciseList = await geminiJson({
     task: "exercise extraction",
     system: CONTENT_SYSTEM,
-    prompt: exercisesPrompt(pageRows, topics),
+    context: pagesBlock(pageRows),
+    prompt: exercisesPrompt(topics),
+    thinking: "MEDIUM",
     schema: exerciseListSchema,
   });
   const exercises = sanitizeExercises(exerciseList.exercises, topics, validPages);

@@ -1,6 +1,7 @@
 import Groq from "groq-sdk";
 import { serverEnv } from "@/lib/env";
 import type { TutorTurn } from "./types";
+import { logUsage } from "./usage";
 
 let client: Groq | undefined;
 function groq() {
@@ -25,6 +26,12 @@ export async function groqQuick(system: string, prompt: string, maxTokens = 400)
     },
     { timeout: QUICK_TIMEOUT_MS, maxRetries: 0 },
   );
+  const cached = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+  logUsage("groq", "quick", {
+    input: (response.usage?.prompt_tokens ?? 0) - cached,
+    cached,
+    output: response.usage?.completion_tokens ?? 0,
+  });
   return (response.choices[0]?.message?.content ?? "").trim();
 }
 

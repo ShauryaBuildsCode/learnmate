@@ -1,8 +1,10 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import { z } from "zod";
 import { serverEnv } from "@/lib/env";
 import { toJsonSchema } from "@/lib/schemas/json-schema";
+import { cachedContentFor, forgetCache } from "./gemini-cache";
 import { AiOutputError } from "./types";
+import { logUsage } from "./usage";
 
 let client: GoogleGenAI | undefined;
 function gemini() {
@@ -44,8 +46,12 @@ async function withModelFallback<T>(call: (model: string) => Promise<T>): Promis
 export interface JsonRequest<T extends z.ZodType> {
   task: string;
   system: string;
+  /** Large text shared by many tasks (the course pages). Always sent first so it can be cached. */
+  context?: string;
   prompt: string;
   schema: T;
+  /** Reasoning depth. LOW is enough for structured generation and costs far fewer tokens. */
+  thinking?: "LOW" | "MEDIUM" | "HIGH";
 }
 
 /** Gemini JSON generation. The output is parsed with zod; one retry with the error fed back, then it throws. */
@@ -53,19 +59,40 @@ export async function geminiJson<T extends z.ZodType>(req: JsonRequest<T>): Prom
   let feedback = "";
   let lastError = "unknown";
   for (let attempt = 0; attempt < 2; attempt++) {
-    const response = await withModelFallback((model) =>
-      gemini().models.generateContent({
-        model,
-        contents: req.prompt + feedback,
-        config: {
-          systemInstruction: req.system,
-          responseMimeType: "application/json",
-          responseJsonSchema: toJsonSchema(req.schema, { relaxed: true }),
-          temperature: 0.4,
-          httpOptions: { timeout: CALL_TIMEOUT_MS },
-        },
-      }),
-    );
+    const response = await withModelFallback(async (model) => {
+      const cached = req.context
+        ? await cachedContentFor(gemini(), model, req.system, req.context)
+        : null;
+      const send = (useCache: string | null) =>
+        gemini().models.generateContent({
+          model,
+          // Without an explicit cache the context still leads the prompt, so implicit caching can hit.
+          contents: (useCache || !req.context ? "" : `${req.context}\n\n`) + req.prompt + feedback,
+          config: {
+            ...(useCache ? { cachedContent: useCache } : { systemInstruction: req.system }),
+            responseMimeType: "application/json",
+            responseJsonSchema: toJsonSchema(req.schema, { relaxed: true }),
+            temperature: 0.4,
+            thinkingConfig: { thinkingLevel: ThinkingLevel[req.thinking ?? "LOW"] },
+            httpOptions: { timeout: CALL_TIMEOUT_MS },
+          },
+        });
+      try {
+        return await send(cached);
+      } catch (error) {
+        if (cached && /cached ?content|not ?found|expired|permission/i.test(String(error))) {
+          forgetCache(cached);
+          return send(null);
+        }
+        throw error;
+      }
+    });
+    const u = response.usageMetadata;
+    logUsage("gemini", req.task, {
+      input: (u?.promptTokenCount ?? 0) - (u?.cachedContentTokenCount ?? 0),
+      cached: u?.cachedContentTokenCount ?? 0,
+      output: (u?.candidatesTokenCount ?? 0) + (u?.thoughtsTokenCount ?? 0),
+    });
     try {
       const parsed = req.schema.safeParse(JSON.parse(response.text ?? ""));
       if (parsed.success) return parsed.data;
