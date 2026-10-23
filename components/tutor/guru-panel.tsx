@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Bot, Lightbulb, Loader2, ScanSearch, Send, X } from "lucide-react";
+import { AlertTriangle, Bot, Lightbulb, Loader2, ScanSearch } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { PageChip } from "@/components/source/source-context";
 import { Button } from "@/components/ui/button";
@@ -11,11 +11,15 @@ import { diagnosticSchema } from "@/lib/schemas/diagnostic";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 import { createClient } from "@/lib/supabase/browser";
 import { streamGuru } from "@/lib/tutor/client";
+import {
+  GuruPanelFrame,
+  type GuruMessage as FrameMessage,
+} from "@/components/design/guru-panel-frame";
 import { MessageText } from "./message-text";
 
 type Looked = Extract<TutorFrame, { t: "final" }>["looked"];
 
-interface GuruMessage {
+interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   text: string;
@@ -82,29 +86,31 @@ function LookedAt({ looked }: { looked: Looked }) {
   );
 }
 
-function Bubble({ m }: { m: GuruMessage }) {
-  if (m.role === "user") {
-    return (
-      <div className="ml-8 rounded-xl bg-primary px-3 py-2 text-sm text-primary-foreground">
-        {m.text}
-      </div>
-    );
-  }
-  return (
-    <div className="mr-4 space-y-1.5">
-      <div className="flex items-center gap-2">
-        {m.provider && <ProviderBadge provider={m.provider} />}
-        {m.note && <span className="text-[11px] text-warning">{m.note}</span>}
-      </div>
-      {m.beyond && (
-        <div
-          role="note"
-          className="flex items-center gap-1.5 rounded-lg border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-medium text-warning"
-        >
-          <AlertTriangle className="h-3.5 w-3.5" /> Beyond your uploaded material
+/** Maps a chat message to the frame's bubble: the provider badge and banner above, the reply inside, sources below. */
+function toFrameMessage(m: ChatMessage): FrameMessage {
+  if (m.role === "user") return { id: m.id, role: "user", text: m.text };
+  return {
+    id: m.id,
+    role: "guru",
+    tone: m.error ? "error" : "default",
+    before: (
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          {m.provider && <ProviderBadge provider={m.provider} />}
+          {m.note && <span className="text-[11px] text-warning">{m.note}</span>}
         </div>
-      )}
-      <div className={m.error ? "text-danger" : ""}>
+        {m.beyond && (
+          <div
+            role="note"
+            className="flex items-center gap-1.5 rounded-lg border border-warning/40 bg-warning/10 px-2 py-1 text-xs font-medium text-warning"
+          >
+            <AlertTriangle className="h-3.5 w-3.5" /> Beyond your uploaded material
+          </div>
+        )}
+      </div>
+    ),
+    text: (
+      <>
         {m.text ? (
           <MessageText text={m.text} />
         ) : (
@@ -113,10 +119,10 @@ function Bubble({ m }: { m: GuruMessage }) {
         {m.streaming && m.text && (
           <span className="ml-0.5 inline-block h-3 w-1 animate-pulse bg-foreground align-middle" />
         )}
-      </div>
-      {m.looked && !m.streaming && <LookedAt looked={m.looked} />}
-    </div>
-  );
+      </>
+    ),
+    meta: m.looked && !m.streaming ? <LookedAt looked={m.looked} /> : undefined,
+  };
 }
 
 export function GuruPanel({
@@ -129,7 +135,7 @@ export function GuruPanel({
   onDiagnostics,
 }: Props) {
   const [open, setOpen] = useState(true);
-  const [messages, setMessages] = useState<GuruMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [rungs, setRungs] = useState<Record<string, number>>({});
@@ -143,8 +149,8 @@ export function GuruPanel({
   );
   const [seenAsk, setSeenAsk] = useState(0);
   const dismissedFor = useRef<string | null>(null);
-  const scroller = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scroller = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const exerciseId = exercise?.id ?? null;
   const rung = exerciseId ? (rungs[exerciseId] ?? 0) : 0;
   const nudge = nudgeState && nudgeState.exerciseId === exerciseId ? nudgeState : null;
@@ -179,7 +185,7 @@ export function GuruPanel({
         ...(userText ? [{ id: uid(), role: "user" as const, text: userText }] : []),
         { id, role: "assistant", text: "", provider: "claude", streaming: true },
       ]);
-      const patch = (fn: (m: GuruMessage) => GuruMessage) =>
+      const patch = (fn: (m: ChatMessage) => ChatMessage) =>
         setMessages((prev) => prev.map((m) => (m.id === id ? fn(m) : m)));
       try {
         await streamGuru(url, body, (frame) => {
@@ -359,34 +365,26 @@ export function GuruPanel({
 
   const ladderDone = rung >= MAX_RUNG;
   return (
-    <section
-      aria-label="Guru, your tutor"
-      className="fixed bottom-4 right-4 z-40 flex h-[34rem] max-h-[calc(100vh-2rem)] w-96 max-w-[calc(100vw-2rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
-    >
-      <header className="flex items-center gap-2 border-b px-3 py-2">
-        <Bot className="h-5 w-5 text-primary" />
-        <div className="flex-1">
-          <h2 className="text-sm font-semibold">Guru</h2>
-          <p className="text-[11px] text-muted-foreground">
-            Your tutor. Sees your code, cites your pages.
-          </p>
-        </div>
-        <button aria-label="Close Guru" onClick={() => setOpen(false)}>
-          <X className="h-4 w-4" />
-        </button>
-      </header>
-
-      <div ref={scroller} className="flex-1 space-y-3 overflow-y-auto p-3">
-        {messages.length === 0 && (
-          <p className="text-sm text-muted-foreground">
-            Ask me anything about this lesson, or press Hint when you get stuck. I will ask
-            questions before I give answers.
-          </p>
-        )}
-        {messages.map((m) => (
-          <Bubble key={m.id} m={m} />
-        ))}
-        {nudge && (
+    <GuruPanelFrame
+      className="fixed bottom-4 right-4 z-40 h-[34rem] max-h-[calc(100vh-2rem)] w-96 max-w-[calc(100vw-2rem)] shadow-2xl"
+      tagline="Your tutor. Sees your code, cites your pages."
+      messages={messages.map(toFrameMessage)}
+      listRef={scroller}
+      inputRef={inputRef}
+      value={input}
+      onChange={setInput}
+      onSend={() => send(input)}
+      onClose={() => setOpen(false)}
+      sendDisabled={busy || !input.trim()}
+      placeholder="Ask Guru…"
+      emptyState={
+        <p className="text-sm text-muted-foreground">
+          Ask me anything about this lesson, or press Hint when you get stuck. I will ask questions
+          before I give answers.
+        </p>
+      }
+      trailing={
+        nudge ? (
           <div className="rounded-xl border border-primary/30 bg-accent p-3 text-sm">
             {nudge.text ? (
               <MessageText text={nudge.text} />
@@ -411,56 +409,30 @@ export function GuruPanel({
               </div>
             )}
           </div>
-        )}
-      </div>
-
-      {exercise && (
-        <div className="space-y-1 border-t px-3 py-2">
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={busy}
-              onClick={() => askHint(ladderDone)}
-              title="Rung 1: a question. Rung 2: the concept and page. Rung 3: a partial fix."
-            >
-              <Lightbulb className="h-3.5 w-3.5" />
-              {ladderDone ? "Show full solution" : `Hint ${rung + 1}/${MAX_RUNG}`}
-            </Button>
-            <Button size="sm" variant="outline" disabled={busy} onClick={review}>
-              <ScanSearch className="h-3.5 w-3.5" /> Review my code
-            </Button>
+        ) : undefined
+      }
+      aboveComposer={
+        exercise ? (
+          <div className="space-y-1 border-t px-3 py-2">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={busy}
+                onClick={() => askHint(ladderDone)}
+                title="Rung 1: a question. Rung 2: the concept and page. Rung 3: a partial fix."
+              >
+                <Lightbulb className="h-3.5 w-3.5" />
+                {ladderDone ? "Show full solution" : `Hint ${rung + 1}/${MAX_RUNG}`}
+              </Button>
+              <Button size="sm" variant="outline" disabled={busy} onClick={review}>
+                <ScanSearch className="h-3.5 w-3.5" /> Review my code
+              </Button>
+            </div>
+            {reviewNote && <p className="text-[11px] text-muted-foreground">{reviewNote}</p>}
           </div>
-          {reviewNote && <p className="text-[11px] text-muted-foreground">{reviewNote}</p>}
-        </div>
-      )}
-
-      <form
-        className="flex items-end gap-2 border-t p-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send(input);
-        }}
-      >
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send(input);
-            }
-          }}
-          rows={2}
-          placeholder="Ask Guru…"
-          aria-label="Ask Guru"
-          className="min-h-10 flex-1 resize-none rounded-lg border bg-background px-3 py-2 text-sm outline-none focus-visible:outline-2 focus-visible:outline-primary"
-        />
-        <Button type="submit" size="icon" disabled={busy || !input.trim()} aria-label="Send">
-          <Send className="h-4 w-4" />
-        </Button>
-      </form>
-    </section>
+        ) : undefined
+      }
+    />
   );
 }

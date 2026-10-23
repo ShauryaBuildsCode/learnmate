@@ -1,8 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { Bot, CheckCheck, Play, RotateCcw } from "lucide-react";
+import { Bot, CheckCheck, RotateCcw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CodeWorkspaceFrame } from "@/components/design/code-workspace-frame";
 import { Button } from "@/components/ui/button";
 import { LANGUAGE_LABELS, TEMPLATES } from "@/lib/ide-templates";
 import { runner } from "@/lib/runners";
@@ -88,6 +89,7 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
   }, [language, files, lastRun, runError, testResults, onSnapshot]);
 
   const run = useCallback(async () => {
+    if (busy !== null) return;
     setBusy("run");
     setRunError(null);
     try {
@@ -99,7 +101,7 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
     } finally {
       setBusy(null);
     }
-  }, [files, language, stdin]);
+  }, [files, language, stdin, busy]);
 
   const check = useCallback(async () => {
     if (!exercise || isScratch) return;
@@ -128,9 +130,72 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
     [hasPreview],
   );
 
+  const fileNames = Object.keys(files);
+  const panel = (
+    <div className="flex h-56 min-h-0 flex-col border-t">
+      <TipBar
+        language={language}
+        code={Object.entries(files)
+          .map(([name, code]) => `// ${name}\n${code}`)
+          .join("\n")}
+        exercise={exercise && !isScratch ? exercise.prompt : null}
+      />
+      <div role="tablist" className="flex gap-1 border-b bg-muted px-2">
+        {tabs.map((t) => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            onClick={() => setTab(t.id)}
+            className={cn(
+              "px-3 py-1.5 text-xs",
+              tab === t.id ? "border-b-2 border-primary font-medium" : "text-muted-foreground",
+            )}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto">
+        {tab === "console" && (
+          <>
+            <ConsolePanel result={lastRun} error={runError} />
+            {lastRun && lastRun.exitCode !== 0 && lastRun.stderr && (
+              <ErrorExplainer language={language} stderr={lastRun.stderr} />
+            )}
+          </>
+        )}
+        {tab === "tests" &&
+          (testResults ? (
+            <TestResultList results={testResults} />
+          ) : (
+            <p className="p-3 text-sm text-muted-foreground">
+              {isScratch
+                ? "Open an exercise to run its tests."
+                : "Click Check to run the hidden tests."}
+            </p>
+          ))}
+        {tab === "preview" && hasPreview && <PreviewPane files={files} language={language} />}
+        {tab === "input" && (
+          <textarea
+            value={stdin}
+            onChange={(e) => setStdin(e.target.value)}
+            placeholder="Standard input for your program (one value per line)"
+            className="h-full w-full resize-none bg-background p-3 font-mono text-xs outline-none"
+          />
+        )}
+      </div>
+    </div>
+  );
+
   return (
-    <div className="flex h-full min-h-0 flex-col bg-card">
-      <div className="flex flex-wrap items-center gap-2 border-b p-2">
+    <CodeWorkspaceFrame
+      className="h-full min-h-0 rounded-none border-0 shadow-none"
+      filename={active}
+      running={busy === "run"}
+      onRun={run}
+      runTitle="Ctrl/Cmd + Enter"
+      toolbar={
         <select
           aria-label="Language"
           value={language}
@@ -138,7 +203,7 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
             const lang = e.target.value as Language;
             load(lang, lang === exercise?.language ? exercise.starterFiles : TEMPLATES[lang]);
           }}
-          className="h-8 rounded-lg border bg-background px-2 text-sm"
+          className="h-8 rounded-lg border bg-background px-2 text-xs"
         >
           {LANGUAGES.map((l) => (
             <option key={l} value={l}>
@@ -146,10 +211,31 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
             </option>
           ))}
         </select>
-        <div className="ml-auto flex gap-2">
-          <Button size="sm" onClick={run} disabled={busy !== null} title="Ctrl/Cmd + Enter">
-            <Play className="h-3.5 w-3.5" /> {busy === "run" ? "Running…" : "Run"}
-          </Button>
+      }
+      fileTabs={
+        fileNames.length > 1 ? (
+          <div role="tablist" className="flex flex-wrap gap-1">
+            {fileNames.map((name) => (
+              <button
+                key={name}
+                role="tab"
+                aria-selected={name === active}
+                onClick={() => setActive(name)}
+                className={cn(
+                  "rounded-md border px-2.5 py-1 font-mono text-xs",
+                  name === active
+                    ? "bg-card"
+                    : "border-transparent text-muted-foreground hover:bg-card/60",
+                )}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        ) : undefined
+      }
+      actions={
+        <>
           <Button size="sm" variant="outline" onClick={check} disabled={busy !== null || isScratch}>
             <CheckCheck className="h-3.5 w-3.5" /> {busy === "check" ? "Checking…" : "Check"}
           </Button>
@@ -165,35 +251,14 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
           <Button size="sm" variant="outline" onClick={onAskGuru}>
             <Bot className="h-3.5 w-3.5" /> Ask Guru
           </Button>
-        </div>
-      </div>
-
-      {exercise && !isScratch && (
-        <p className="border-b bg-accent px-3 py-2 text-sm">{exercise.prompt}</p>
-      )}
-
-      {Object.keys(files).length > 1 && (
-        <div role="tablist" className="flex gap-1 border-b px-2 pt-1">
-          {Object.keys(files).map((name) => (
-            <button
-              key={name}
-              role="tab"
-              aria-selected={name === active}
-              onClick={() => setActive(name)}
-              className={cn(
-                "rounded-t-md px-3 py-1 text-xs",
-                name === active
-                  ? "bg-muted font-medium"
-                  : "text-muted-foreground hover:bg-muted/60",
-              )}
-            >
-              {name}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <div className="min-h-0 flex-1">
+        </>
+      }
+      notice={
+        exercise && !isScratch ? (
+          <p className="border-b bg-accent px-3 py-2 text-sm">{exercise.prompt}</p>
+        ) : undefined
+      }
+      editor={
         <CodeEditorView
           path={active}
           value={files[active] ?? ""}
@@ -201,63 +266,8 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
           onRun={run}
           diagnostics={isScratch ? [] : diagnostics}
         />
-      </div>
-
-      <TipBar
-        language={language}
-        code={Object.entries(files)
-          .map(([name, code]) => `// ${name}\n${code}`)
-          .join("\n")}
-        exercise={exercise && !isScratch ? exercise.prompt : null}
-      />
-
-      <div className="flex h-56 min-h-0 flex-col border-t">
-        <div role="tablist" className="flex gap-1 border-b px-2">
-          {tabs.map((t) => (
-            <button
-              key={t.id}
-              role="tab"
-              aria-selected={tab === t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                "px-3 py-1.5 text-xs",
-                tab === t.id ? "border-b-2 border-primary font-medium" : "text-muted-foreground",
-              )}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto">
-          {tab === "console" && (
-            <>
-              <ConsolePanel result={lastRun} error={runError} />
-              {lastRun && lastRun.exitCode !== 0 && lastRun.stderr && (
-                <ErrorExplainer language={language} stderr={lastRun.stderr} />
-              )}
-            </>
-          )}
-          {tab === "tests" &&
-            (testResults ? (
-              <TestResultList results={testResults} />
-            ) : (
-              <p className="p-3 text-sm text-muted-foreground">
-                {isScratch
-                  ? "Open an exercise to run its tests."
-                  : "Click Check to run the hidden tests."}
-              </p>
-            ))}
-          {tab === "preview" && hasPreview && <PreviewPane files={files} language={language} />}
-          {tab === "input" && (
-            <textarea
-              value={stdin}
-              onChange={(e) => setStdin(e.target.value)}
-              placeholder="Standard input for your program (one value per line)"
-              className="h-full w-full resize-none bg-background p-3 font-mono text-xs outline-none"
-            />
-          )}
-        </div>
-      </div>
-    </div>
+      }
+      panel={panel}
+    />
   );
 }

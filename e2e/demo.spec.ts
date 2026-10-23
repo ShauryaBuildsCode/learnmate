@@ -81,7 +81,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await expect(page.getByText(/^0 of \d+ tests passed$/)).toBeVisible();
 
   // Guru: hint ladder, then a grounded question with a page citation
-  const guru = page.getByRole("region", { name: "Guru, your tutor" });
+  const guru = page.getByRole("complementary", { name: "Guru tutor" });
   await guru.getByRole("button", { name: /Hint 1\/3/ }).click();
   await expect(guru.getByText("Claude").first()).toBeVisible({ timeout: 90_000 });
   await guru.getByLabel("Ask Guru").fill("why does range stop before 5?");
@@ -98,7 +98,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
 
   // Out-of-scope question gets the amber banner
   await page.goto(`/learn/${(await client.from("topics").select("id").eq("course_id", courseId).order("position").limit(1).single()).data!.id}`);
-  const guru2 = page.getByRole("region", { name: "Guru, your tutor" });
+  const guru2 = page.getByRole("complementary", { name: "Guru tutor" });
   await guru2.getByLabel("Ask Guru").fill("how do I use pandas?");
   await guru2.getByRole("button", { name: "Send" }).click();
   await expect(guru2.getByRole("note")).toContainText("Beyond your uploaded material", { timeout: 90_000 });
