@@ -1,12 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { claudeJson } from "@/lib/ai/anthropic";
+import { MASTER_TEACHER_SYSTEM } from "@/lib/ai/prompts/master-teacher";
+import { groqJson } from "@/lib/ai/groq";
 import { MOTION_DIRECTOR_SYSTEM, motionDirectorPrompt } from "@/lib/ai/prompts/motion-director";
 import { courseBlock } from "@/lib/ai/prompts/tutor";
 import { AiOutputError } from "@/lib/ai/types";
 import { serverEnv } from "@/lib/env";
 import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
-import { validateScript } from "./validate";
+import { isSolid, validateScript } from "./validate";
 
 type Supabase = SupabaseClient<Database>;
 
@@ -69,31 +71,63 @@ export async function getOrCreateLesson(
   };
 
   /**
-   * Claude directs the lesson: the main model first, then the second-choice Claude model if the first
-   * fails or its script doesn't validate. Lessons never go to another provider.
+   * Who writes the lesson, in order: Claude (main model, then its second-choice model) for the best teaching and
+   * narration, then Groq if both fail or their scripts don't validate. Gemini is never used for lessons.
    */
   const env = serverEnv();
+  const director = {
+    persona: `${MOTION_DIRECTOR_SYSTEM}\n\n${MASTER_TEACHER_SYSTEM}`,
+    courseBlock: courseBlock(course?.title ?? "Course", pages),
+    prompt: motionDirectorPrompt({ topic, validPages, exercises, allowTrace, uiLang }),
+  };
+  const attempts: { provider: "groq" | "claude"; label: string; run: () => Promise<unknown> }[] = [
+    ...[env.ANTHROPIC_MODEL, env.ANTHROPIC_FALLBACK_MODEL].map((model) => ({
+      provider: "claude" as const,
+      label: model,
+      run: () =>
+        claudeJson({
+          model,
+          ...director,
+          effort: "medium",
+          maxTokens: 9000,
+          task: "motion director",
+        }),
+    })),
+    {
+      provider: "groq",
+      label: env.GROQ_LESSON_MODEL,
+      run: () =>
+        groqJson({
+          system: `${director.persona}\n\n${director.courseBlock}`,
+          prompt: director.prompt,
+          maxTokens: 8000,
+          task: "lesson script",
+        }),
+    },
+  ];
+
   let result: ReturnType<typeof validateScript> | null = null;
+  let best: ReturnType<typeof validateScript> | null = null;
   let lastError: unknown;
-  for (const model of [env.ANTHROPIC_MODEL, env.ANTHROPIC_FALLBACK_MODEL]) {
+  for (const attempt of attempts) {
     try {
-      const raw = await claudeJson({
-        model,
-        persona: MOTION_DIRECTOR_SYSTEM,
-        courseBlock: courseBlock(course?.title ?? "Course", pages),
-        prompt: motionDirectorPrompt({ topic, validPages, exercises, allowTrace, uiLang }),
-        effort: "medium",
-        maxTokens: 9000,
-        task: "motion director",
-      });
+      const raw = await attempt.run();
       if (raw) {
-        result = validateScript(raw, validation, "claude");
-        break;
+        const candidate = validateScript(raw, validation, attempt.provider);
+        if (isSolid(candidate)) {
+          result = candidate;
+          break;
+        }
+        // Too thin to ship (many scenes rejected): try the next provider, but remember the best we saw.
+        console.warn(
+          `[lesson] ${attempt.provider} (${attempt.label}) kept only ${candidate.script.scenes.length} scenes; trying the next writer`,
+        );
+        if (!best || candidate.script.scenes.length > best.script.scenes.length) best = candidate;
       }
     } catch (error) {
       lastError = error;
       console.error(
-        `[lesson] ${model} could not direct the lesson:`,
+        `[lesson] ${attempt.provider} (${attempt.label}) could not write the lesson:`,
         error instanceof Error ? error.message : error,
       );
     }

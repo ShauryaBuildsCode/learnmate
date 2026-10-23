@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { z } from "zod";
 import { serverEnv } from "@/lib/env";
+import { extractJson } from "./json";
 import { toJsonSchema } from "@/lib/schemas/json-schema";
 import type { TutorTurn } from "./types";
 import { logUsage } from "./usage";
@@ -130,16 +131,6 @@ export async function claudeStructured<T extends z.ZodType>(
   if (!text || text.type !== "text") return null;
   const parsed = input.schema.safeParse(JSON.parse(text.text));
   return parsed.success ? parsed.data : null;
-}
-
-/** Pulls the JSON object out of a reply that may be wrapped in a code fence or have a stray sentence around it. */
-export function extractJson(text: string): unknown {
-  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  const body = (fenced ? fenced[1] : text).trim();
-  const start = body.indexOf("{");
-  const end = body.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("The reply contained no JSON object.");
-  return JSON.parse(body.slice(start, end + 1));
 }
 
 /**

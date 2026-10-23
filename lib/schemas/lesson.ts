@@ -156,7 +156,7 @@ export type SceneType = Scene["type"];
 export const lessonScriptSchema = z.object({
   title: z.string().max(100),
   /** Which model directed the lesson; set by the server, never by the model. */
-  directedBy: z.enum(["claude", "gemini"]).optional(),
+  directedBy: z.enum(["groq", "claude", "gemini"]).optional(),
   scenes: z.array(sceneSchema).min(3).max(16),
 });
 export type LessonScript = z.infer<typeof lessonScriptSchema>;
@@ -167,7 +167,7 @@ export type LessonScript = z.infer<typeof lessonScriptSchema>;
  */
 export const lessonEnvelopeSchema = z.object({
   title: z.string().max(200),
-  directedBy: z.enum(["claude", "gemini"]).optional(),
+  directedBy: z.enum(["groq", "claude", "gemini"]).optional(),
   scenes: z.array(z.record(z.string(), z.unknown())).min(3).max(20),
 });
 

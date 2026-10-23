@@ -1,4 +1,5 @@
 import {
+  ANALOGY_ICONS,
   lessonEnvelopeSchema,
   sceneSchema,
   type LessonScript,
@@ -19,6 +20,82 @@ export interface ValidatedScript {
 
 const MAX_NARRATION = 600;
 
+/** Icon names models tend to reach for that aren't in the library, mapped to the closest one that is. */
+type IconName = (typeof ANALOGY_ICONS)[number];
+const ICON_SYNONYMS: Record<string, IconName> = {
+  loop: "repeat",
+  cycle: "repeat",
+  refresh: "repeat",
+  sync: "repeat",
+  rotate: "repeat",
+  infinity: "repeat",
+  array: "list",
+  number: "list",
+  numbers: "list",
+  brackets: "code",
+  bracket: "code",
+  terminal: "code",
+  function: "code",
+  braces: "code",
+  box: "package",
+  variable: "package",
+  container: "package",
+  archive: "package",
+  cube: "package",
+  index: "key",
+  lock: "key",
+  pointer: "target",
+  arrow: "target",
+  bullseye: "target",
+  timer: "clock",
+  time: "clock",
+  hourglass: "clock",
+  calendar: "clock",
+  error: "bug",
+  warning: "bug",
+  alert: "bug",
+  idea: "lightbulb",
+  light: "lightbulb",
+  bulb: "lightbulb",
+  star: "rocket",
+  launch: "rocket",
+  stack: "layers",
+  layer: "layers",
+  slice: "layers",
+  grid: "layers",
+  speed: "zap",
+  lightning: "zap",
+  bolt: "zap",
+  flash: "zap",
+  library: "book",
+  document: "book",
+  text: "book",
+  page: "book",
+  path: "map",
+  route: "map",
+  compass: "map",
+  cart: "shopping-cart",
+  basket: "shopping-cart",
+  shop: "shopping-cart",
+  piece: "puzzle",
+  piano: "music",
+  note: "music",
+  house: "building",
+  home: "building",
+  ticketing: "ticket",
+};
+
+/** Icons are decorative, so an unknown name is repaired (never worth dropping a scene over). */
+function fixIcon(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  const name = value
+    .toLowerCase()
+    .trim()
+    .replace(/[\s_]+/g, "-");
+  if ((ANALOGY_ICONS as readonly string[]).includes(name)) return name;
+  return ICON_SYNONYMS[name] ?? ICON_SYNONYMS[name.replace(/-/g, "")] ?? "puzzle";
+}
+
 /** Light, safe repairs for near-misses the model makes often; anything else is left for validation to reject. */
 function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
   const scene = { ...raw };
@@ -35,8 +112,16 @@ function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
     scene.narration = scene.narration.slice(0, MAX_NARRATION).replace(/\s+\S*$/, "");
   }
   if (typeof scene.seconds === "number") scene.seconds = Math.min(40, Math.max(4, scene.seconds));
+  if ("icon" in scene) scene.icon = fixIcon(scene.icon);
+  if (scene.type === "KeyTerms" && Array.isArray(scene.terms)) {
+    scene.terms = scene.terms.map((t: Record<string, unknown>) => ({
+      ...t,
+      icon: fixIcon(t.icon),
+    }));
+  }
   if (scene.type === "Bento" && Array.isArray(scene.cards)) {
-    scene.cards = scene.cards.map((card: Record<string, unknown>) => {
+    scene.cards = scene.cards.map((rawCard: Record<string, unknown>) => {
+      const card: Record<string, unknown> = { ...rawCard, icon: fixIcon(rawCard.icon) };
       const stat = card.stat as { prefix?: string; suffix?: string } | undefined;
       if (!stat) return card;
       return {
@@ -60,7 +145,7 @@ function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
 export function validateScript(
   raw: unknown,
   opts: ValidateOptions,
-  directedBy?: "claude" | "gemini",
+  directedBy?: "groq" | "claude" | "gemini",
 ): ValidatedScript {
   const envelope = lessonEnvelopeSchema.parse(raw);
   const dropped: ValidatedScript["dropped"] = [];
@@ -102,4 +187,11 @@ export function validateScript(
   }
   if (scenes.length < 3) throw new Error("Too few valid scenes remain after validation.");
   return { script: { title: envelope.title, directedBy, scenes }, dropped };
+}
+
+/** A lesson is good enough to ship when it kept nearly all its scenes. */
+export const MIN_SCENES = 6;
+export const MAX_DROPPED = 1;
+export function isSolid(result: ValidatedScript): boolean {
+  return result.script.scenes.length >= MIN_SCENES && result.dropped.length <= MAX_DROPPED;
 }

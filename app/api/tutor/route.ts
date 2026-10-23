@@ -28,10 +28,10 @@ export async function POST(request: Request) {
     context,
     policy: {
       // With no exercise open there is nothing to protect, so coding help is never gated.
-      revealAllowed: solutionRequests >= 2 || !context.exercise,
+      revealAllowed: solutionRequests >= 1 || !context.exercise,
       solutionRequests,
       uiLang,
-      task: solutionRequests >= 2 ? SECOND_ASK_TASK : undefined,
+      task: solutionRequests >= 1 ? SECOND_ASK_TASK : undefined,
     },
     allowEdits: true,
     effort: "medium",

@@ -1,4 +1,4 @@
-import { INJECTION_RULE, fence } from "./fence";
+import { INJECTION_RULE, defangInstructions, fence } from "./fence";
 
 export const CONTENT_SYSTEM = `You are the content engine of LearnMate, an app that turns study material into lessons, exercises and quizzes for students.
 Rules that apply to everything you write:
@@ -10,7 +10,7 @@ Rules that apply to everything you write:
 export function pagesBlock(pages: { page_no: number; text: string }[]): string {
   return fence(
     "course_material",
-    pages.map((p) => `<page n="${p.page_no}">\n${p.text}\n</page>`).join("\n"),
+    pages.map((p) => `<page n="${p.page_no}">\n${defangInstructions(p.text)}\n</page>`).join("\n"),
   );
 }
 

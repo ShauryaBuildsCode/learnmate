@@ -5,6 +5,7 @@ import { fence } from "@/lib/ai/prompts/fence";
 import type { TutorTurn } from "@/lib/ai/types";
 import { groundAnswer, toPageMap } from "@/lib/grounding";
 import { EDIT_CODE_TOOL, fromToolInput, validateEdits } from "@/lib/ide/edits";
+import { withholdSolution } from "./solution-guard";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 
@@ -132,6 +133,13 @@ export function guruResponse(call: GuruCall): Response {
             editCount > 1
               ? "I've made a few changes to your code. You can undo them in the editor."
               : "I've made a change to your code. You can undo it in the editor.";
+        }
+        // Backstop for the teaching rule: while the exercise is locked, a finished rewrite of the student's function is withheld.
+        if (!call.policy.revealAllowed && call.context.exercise && files) {
+          const guarded = withholdSolution(text, files);
+          if (guarded.withheld)
+            console.info(`[guru] withheld ${guarded.withheld} solution block(s)`);
+          text = guarded.text;
         }
         const grounded = groundAnswer(text, pageMap);
         send({
