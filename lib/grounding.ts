@@ -101,7 +101,10 @@ export function groundAnswer(answer: string, pages: PageMap): GroundedAnswer {
     .replace(/\s+([.,;!?])/g, "$1")
     .trim();
 
-  const declared = text.startsWith(BEYOND_PREFIX);
+  // Models sometimes bold or quote the label; accept that and rewrite it to the canonical plain prefix.
+  const label = text.match(/^[\s*_>"'`]*beyond your uploaded material[\s*_"'`]*:[\s*_]*/i);
+  const declared = label !== null;
+  if (label) text = `${BEYOND_PREFIX} ${text.slice(label[0].length)}`;
   const beyond = declared || stripped > 0;
   if (beyond && !declared) text = `${BEYOND_PREFIX} ${text}`;
   return { text, beyond, citedPages: [...citedPages].sort((a, b) => a - b), stripped };

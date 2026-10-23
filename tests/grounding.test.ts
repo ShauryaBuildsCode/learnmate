@@ -66,6 +66,15 @@ describe("groundAnswer", () => {
     expect(r.beyond).toBe(false);
   });
 
+  it("accepts a markdown-bolded Beyond label and rewrites it to plain text", () => {
+    const r = groundAnswer("**Beyond your uploaded material:** pandas is a data library.", pages);
+    expect(r.beyond).toBe(true);
+    expect(r.text).toBe("Beyond your uploaded material: pandas is a data library.");
+    const r2 = groundAnswer("**Beyond your uploaded material**: pandas is a data library.", pages);
+    expect(r2.beyond).toBe(true);
+    expect(r2.text.startsWith("Beyond your uploaded material:")).toBe(true);
+  });
+
   it("honours an explicit Beyond prefix from the model", () => {
     const r = groundAnswer(`${BEYOND_PREFIX} pandas is a data library.`, pages);
     expect(r.beyond).toBe(true);

@@ -1,5 +1,6 @@
 import { pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
+import path from "node:path";
 import { assertPageCount, assertUploadSize, IngestError, MIN_PAGE_CHARS } from "./limits";
 
 export interface ExtractedPdf {
@@ -15,12 +16,37 @@ let pdfjs: PdfJs | undefined;
 async function loadPdfJs(): Promise<PdfJs> {
   if (!pdfjs) {
     pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const workerPath = createRequire(import.meta.url).resolve(
+    // Resolve from the project root: `import.meta.url` is rewritten by the bundler and can't be used here.
+    const workerPath = createRequire(path.join(process.cwd(), "package.json")).resolve(
       "pdfjs-dist/legacy/build/pdf.worker.mjs",
     );
     pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
   }
   return pdfjs;
+}
+
+/** Turns a pdfjs failure into a message that tells the student what is actually wrong. */
+function classifyPdfError(error: unknown): IngestError {
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message : String(error);
+  if (name === "PasswordException") {
+    return new IngestError(
+      "password",
+      "That PDF is password protected. Remove the password and upload it again.",
+    );
+  }
+  if (name === "InvalidPDFException" || name === "FormatError") {
+    return new IngestError(
+      "bad_pdf",
+      "That file isn't a valid PDF. It may be corrupted: try exporting it again.",
+    );
+  }
+  // Anything else is on our side (for example the PDF engine failing to start): log it, and don't blame the file.
+  console.error("[ingest] PDF engine error:", name, message);
+  return new IngestError(
+    "unreadable",
+    "We couldn't read that PDF just now. Please try again, or paste the text instead.",
+  );
 }
 
 /**
@@ -40,11 +66,8 @@ export async function extractPdf(data: Uint8Array): Promise<ExtractedPdf> {
     let doc;
     try {
       doc = await task.promise;
-    } catch {
-      throw new IngestError(
-        "bad_pdf",
-        "That file couldn't be read as a PDF. Is it corrupted or password protected?",
-      );
+    } catch (error) {
+      throw classifyPdfError(error);
     }
     assertPageCount(doc.numPages);
     for (let n = 1; n <= doc.numPages; n++) {

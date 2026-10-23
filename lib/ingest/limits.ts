@@ -7,7 +7,8 @@ export const MIN_PAGE_CHARS = 40;
 
 export class IngestError extends Error {
   constructor(
-    public readonly code: "too_large" | "too_many_pages" | "scanned" | "empty" | "bad_pdf",
+    public readonly code:
+      "too_large" | "too_many_pages" | "scanned" | "empty" | "bad_pdf" | "password" | "unreadable",
     message: string,
   ) {
     super(message);
