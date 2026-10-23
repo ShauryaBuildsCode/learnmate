@@ -6,6 +6,7 @@ const live =
   !!process.env.NEXT_PUBLIC_SUPABASE_URL &&
   !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("YOUR-PROJECT");
 
+const PDF_BYTES = new TextEncoder().encode("%PDF-1.4");
 const A = { email: `rls-a-${Date.now()}@example.com`, password: "rls-test-password-1" };
 const B = { email: `rls-b-${Date.now()}@example.com`, password: "rls-test-password-2" };
 
@@ -111,11 +112,11 @@ describe.skipIf(!live)("row level security", () => {
     const path = `${a.userId}/test.pdf`;
     const upload = await b.client.storage
       .from("materials")
-      .upload(path, new Blob(["%PDF-1.4"]), { contentType: "application/pdf" });
+      .upload(path, PDF_BYTES, { contentType: "application/pdf" });
     expect(upload.error).not.toBeNull();
     const own = await a.client.storage
       .from("materials")
-      .upload(path, new Blob(["%PDF-1.4"]), { contentType: "application/pdf" });
+      .upload(path, PDF_BYTES, { contentType: "application/pdf" });
     expect(own.error).toBeNull();
     expect((await b.client.storage.from("materials").download(path)).error).not.toBeNull();
     await a.client.storage.from("materials").remove([path]);
