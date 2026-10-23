@@ -49,7 +49,7 @@ function systemBlocks(input: Pick<ClaudeTutorInput, "persona" | "courseBlock">) 
  */
 export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerator<string> {
   const stream = anthropic().beta.messages.stream({
-    model: serverEnv().ANTHROPIC_MODEL,
+    model: serverEnv().ANTHROPIC_TUTOR_MODEL,
     max_tokens: input.maxTokens,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",

@@ -2,11 +2,13 @@ import type { Scene } from "@/lib/schemas/lesson";
 import { Analogy } from "./scenes/analogy";
 import { ArrayViz } from "./scenes/array-viz";
 import { Bento } from "./scenes/bento";
+import { Compare } from "./scenes/compare";
 import { Checkpoint } from "./scenes/checkpoint";
 import { CodeReveal } from "./scenes/code-reveal";
 import { FlowDiagram } from "./scenes/flow-diagram";
 import { KeyTerms } from "./scenes/key-terms";
 import { RepeatBurst } from "./scenes/repeat-burst";
+import { Steps } from "./scenes/steps";
 import { TitleCard } from "./scenes/title-card";
 import { VariableTracker } from "./scenes/variable-tracker";
 
@@ -31,6 +33,10 @@ export function SceneRenderer({ scene }: { scene: Scene }) {
       return <FlowDiagram scene={scene} />;
     case "Analogy":
       return <Analogy scene={scene} />;
+    case "Steps":
+      return <Steps scene={scene} />;
+    case "Compare":
+      return <Compare scene={scene} />;
     case "Checkpoint":
       return <Checkpoint scene={scene} />;
   }

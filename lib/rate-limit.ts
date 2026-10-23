@@ -28,6 +28,7 @@ export const LIMITS = {
   run: { capacity: 20, refillPerSecond: 0.5 },
   ingest: { capacity: 3, refillPerSecond: 1 / 60 },
   study: { capacity: 4, refillPerSecond: 1 / 20 },
+  grade: { capacity: 20, refillPerSecond: 0.5 },
   light: { capacity: 60, refillPerSecond: 2 },
   narration: { capacity: 6, refillPerSecond: 1 / 20 },
 } satisfies Record<string, RateLimitConfig>;

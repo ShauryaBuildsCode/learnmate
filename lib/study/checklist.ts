@@ -13,7 +13,7 @@ export interface ChecklistStep {
 export interface ChecklistInput {
   courseId: string;
   topics: { id: string; name: string }[];
-  exercises: { id: string; topicId: string; prompt: string }[];
+  exercises: { id: string; topicId: string; prompt: string; practice?: boolean }[];
   passedExerciseIds: ReadonlySet<string>;
   /** Topics that appeared in at least one completed quiz. */
   quizzedTopicIds: ReadonlySet<string>;
@@ -56,7 +56,7 @@ export function deriveSteps(input: ChecklistInput): ChecklistStep[] {
         key: `exercise:${e.id}`,
         topicId: t.id,
         kind: "exercise",
-        label: `Pass the exercise: ${short(e.prompt)}`,
+        label: `${e.practice ? "Answer the practice question" : "Pass the exercise"}: ${short(e.prompt)}`,
         done: input.passedExerciseIds.has(e.id),
         href: `/learn/${t.id}`,
       });

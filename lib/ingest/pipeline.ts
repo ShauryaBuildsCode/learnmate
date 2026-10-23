@@ -6,6 +6,7 @@ import {
   topicMapPrompt,
 } from "@/lib/ai/prompts/content";
 import { geminiJson } from "@/lib/ai/gemini";
+import { generatePractice } from "@/lib/practice/generate";
 import { AiOutputError } from "@/lib/ai/types";
 import {
   exerciseListSchema,
@@ -29,6 +30,9 @@ export type IngestStage = "reading" | "topics" | "exercises" | "saving";
 
 export interface IngestResult {
   courseId: string;
+  kind: "programming" | "concepts";
+  language: string | null;
+  practiceCount: number;
   topicCount: number;
   exerciseCount: number;
   warnings: string[];
@@ -127,16 +131,26 @@ export async function ingestMaterial({
   });
   const topics = sanitizeTopics(map, validPages);
 
-  progress("exercises", "Building exercises…");
-  const exerciseList = await geminiJson({
-    task: "exercise extraction",
-    system: CONTENT_SYSTEM,
-    context: pagesBlock(pageRows),
-    prompt: exercisesPrompt(topics),
-    thinking: "MEDIUM",
-    schema: exerciseListSchema,
-  });
-  const exercises = sanitizeExercises(exerciseList.exercises, topics, validPages);
+  // Coding material gets runnable exercises in its own language; anything else gets interactive practice questions.
+  const programming = map.kind === "programming" && map.language !== "none";
+  const language = programming ? map.language : null;
+  let exercises: GeneratedExerciseWithSolution[] = [];
+  let practice: Awaited<ReturnType<typeof generatePractice>> = [];
+  if (programming) {
+    progress("exercises", "Building exercises…");
+    const exerciseList = await geminiJson({
+      task: "exercise extraction",
+      system: CONTENT_SYSTEM,
+      context: pagesBlock(pageRows),
+      prompt: exercisesPrompt(topics, map.language),
+      thinking: "MEDIUM",
+      schema: exerciseListSchema,
+    });
+    exercises = sanitizeExercises(exerciseList.exercises, topics, validPages);
+  } else {
+    progress("exercises", "Writing practice questions…");
+    practice = await generatePractice({ pages: pageRows, topics });
+  }
 
   progress("saving", "Saving your course…");
   const { data: course, error: courseError } = await supabase
@@ -148,6 +162,8 @@ export async function ingestMaterial({
       source_type: source.kind,
       storage_path: source.kind === "pdf" ? source.storagePath : null,
       page_count: pageRows.length,
+      kind: programming ? "programming" : "concepts",
+      language,
     })
     .select("id")
     .single();
@@ -174,6 +190,19 @@ export async function ingestMaterial({
     if (topicsError || !topicRows) throw topicsError;
     const topicId = new Map(topicRows.map((r) => [r.position, r.id]));
 
+    if (practice.length) {
+      const { error: practiceError } = await supabase.from("practice_items").insert(
+        practice.map((p) => ({
+          course_id: course.id,
+          topic_id: topicId.get(p.topicIndex)!,
+          kind: p.item.kind,
+          data: p.item as unknown as Json,
+          page: p.page,
+        })),
+      );
+      if (practiceError) throw practiceError;
+    }
+
     if (exercises.length) {
       const { error: exerciseError } = await supabase.from("exercises").insert(
         exercises.map((e) => ({
@@ -196,6 +225,9 @@ export async function ingestMaterial({
 
   return {
     courseId: course.id,
+    kind: programming ? "programming" : "concepts",
+    language,
+    practiceCount: practice.length,
     topicCount: topics.length,
     exerciseCount: exercises.length,
     warnings,

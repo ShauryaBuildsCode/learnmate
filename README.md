@@ -10,6 +10,8 @@ Upload a PDF chapter (or paste notes). LearnMate finds the topics, finds which o
 
 1. **Ingest** a PDF (up to 20 pages / 10 MB) or pasted text. Pages are extracted one by one and stored. Gemini returns a topic map (5-8 topics with page numbers) and runnable worksheet exercises with tests.
 2. **Animated lesson** per topic, **directed as an expert motion animator**. The model chooses and orders scenes from a fixed library of hand-built React scenes (title, key terms, bento overview, analogy, code, variable trace, flowchart, list blocks, repeat mosaic, checkpoint) and writes the narration they are timed to: every on-screen label is spoken in the order it appears, and chosen emphasis words trigger camera punches and caption highlights. Scenes are plain React components animated on a clock driven by a **recorded narration**, with each beat landing on the word actually being spoken. Lesson scripts and narration are written by **Claude** under a master-teacher prompt (`lib/ai/prompts/master-teacher.ts`) plus the motion-director prompt; if both Claude models fail or return a thin lesson (fewer than 6 valid scenes, or more than 1 dropped), **Groq** (`GROQ_LESSON_MODEL`) is the fallback. Gemini is never used for lessons. Every scene shows and links its **source page**. Variable traces come from **really executing the code** (Pyodide), never from the model.
+2a. **Any subject, not just Python.** On upload the material is classified in the same call that finds the topics. **Coding material** (Python, JavaScript, HTML/CSS, React, C, C++, Java, Go, Rust) gets a course in that language: the exercises, the editor, the lesson's code scenes and Guru's fixes are all in it, and the scratch pad opens in it. **Anything else** (biology, history, maths, law...) gets no editor: it gets interactive practice questions instead (multiple choice with a verified source quote, fill-in-the-blank, and short answers graded by AI in about a second), and lessons that use only concept scenes (including new *Steps* and *Compare* scenes) and never show code. Practice answers feed mastery, the plan and the checklist exactly like exercises do.
+2aa. **Sign-up and welcome.** Sign-up asks for name, email and password, then (optionally) goal, level, what they want to study, minutes a day and language; the database trigger copies these onto the profile, and every AI (Guru, lessons, notes, mind maps) is told the learner's level and goal. First sign-in plays a short, skippable **animated welcome** built from the same motion engine as the lessons, personalised with their name and interests.
 2b. **Study tools per course** (tabs inside each course): **quizzes** with accuracy by topic and a question-by-question review of every attempt; **revision notes** (TL;DR, key points with page links, terms, common mistakes, worked example, self-check questions; printable); an interactive **mind map** (pan, zoom, click a node for its page or lesson, plus a text outline); the **revision plan** with version history; and a **checklist** whose study steps tick themselves from real progress (lesson reached, exercise passed, quiz answered, notes read) plus the student's own tasks. Notes and mind maps are written by Claude (Groq fallback) as validated JSON: pages that don't exist are dropped and the mind map is repaired into a valid tree, so no model output is ever rendered as code.
 2c. **Dashboard** (streak, average score, up-next topic from the plan, per-course mastery) and **Analytics** (study activity, quiz scores, mastery over time, weakest topics). Needs migration `0003_study_tools.sql`.
 3. **Checkpoint** scenes pause the lesson and open a **side-along IDE** with the exercise.
@@ -29,11 +31,28 @@ Three AI providers, each with a clear job, behind one typed router (`lib/ai/rout
 | **Lesson script and narration**: scene choice, order, emphasis, and what is said | **Claude** (`claude-opus-5-5`, then `claude-sonnet-5-5`) with the master-teacher and expert-motion-animator prompts; **Groq** (`openai/gpt-oss-120b`) only as fallback | Teaching quality and a tight match between spoken words and on-screen labels; every result goes through the same scene-by-scene validation and quality gate |
 | Narration (text to speech, English and Hindi) | **Gemini TTS** (`gemini-3.8-flash-tts`, with fallbacks) | Exact audio length is what drives animation timing |
 | Guru: chat, hint ladder, code review, inline diagnostics, proposed code edits (`edit_code` tool) | **Claude** (`claude-opus-5-5`) | Best at patient, Socratic, grounded explanation. Adaptive thinking, explicit effort (`low` for live IDE hints, `medium` for chat), streamed |
+| **Practice items for concept courses** | **Claude** (parallel calls, low effort) | A few topics per call, merged; every multiple-choice quote is verified against its page |
+| **Short-answer grading** | **Groq** (`gpt-oss-20b`, low effort) with a **Claude** fallback | About a second; the student's answer is fenced as data |
 | **Quizzes and practice questions**: every question quotes its page, with distractors drawn from real beginner mistakes | **Claude** (`claude-opus-5-5`, then `claude-sonnet-5-5`; Groq last resort) with a master-teacher quiz prompt | Better question and distractor quality; quotes are still verified against the page in code, and failures regenerate |
 | Micro-tasks: typing tips, plain-English error one-liners, instant quiz-answer feedback | **Groq** (`openai/gpt-oss-20b`) | Sub-second latency |
 | Fallback tutor | **Groq** | If Claude fails, the reply is regenerated by Groq and **labelled** ("Claude was unavailable, so Groq answered instead"). Never a silent swap |
 
 Models come from env vars. Gemini calls fall back from the primary to a second model automatically on overload, rate limit or timeout.
+
+### Speed
+
+Measured on the live app (Claude Haiku 5.5 as the main model, medium-length course):
+
+| Job | Before | Now | How |
+|---|---|---|---|
+| Animated lesson script | 30 s | **9-19 s** | Claude at `low` effort; quality checked scene by scene |
+| Revision notes (whole course) | 65 s | **15 s** | Topics split into parallel calls that share the cached course text |
+| Mind map | 17 s | **12 s** | Low effort |
+| Quiz (7 questions, quotes verified) | n/a | **12 s** | Low effort |
+| Practice items (21, concept courses) | 29 s | **13 s** | Parallel calls |
+| Short-answer grading | n/a | **~1 s** | Small Groq model, low effort |
+
+The first lesson is also written in the background as soon as a course is created, so it is usually ready when the student opens it.
 
 ### Prompt caching
 

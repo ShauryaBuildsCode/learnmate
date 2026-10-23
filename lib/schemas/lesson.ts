@@ -136,6 +136,28 @@ export const sceneSchema = z.discriminatedUnion("type", [
     appendValue: z.string().max(8).optional(),
   }),
   z.object({
+    type: z.literal("Steps"),
+    ...base,
+    /** A process or sequence: numbered steps that connect one after another as each is spoken. */
+    steps: z
+      .array(z.object({ label: z.string().max(28), detail: z.string().max(80).optional() }))
+      .min(3)
+      .max(6),
+  }),
+  z.object({
+    type: z.literal("Compare"),
+    ...base,
+    /** Two things side by side, point by point. */
+    left: z.object({
+      title: z.string().max(30),
+      points: z.array(z.string().max(60)).min(2).max(4),
+    }),
+    right: z.object({
+      title: z.string().max(30),
+      points: z.array(z.string().max(60)).min(2).max(4),
+    }),
+  }),
+  z.object({
     type: z.literal("RepeatBurst"),
     ...base,
     /** "Write it once, run it N times": a mosaic of tiles zooms out as a counter climbs. */

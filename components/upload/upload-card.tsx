@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { IngestFrame } from "@/app/api/ingest/route";
 import { MAX_PAGES, MAX_PDF_BYTES } from "@/lib/ingest/limits";
+import { prefetchFirstLesson } from "@/lib/prefetch";
 import { readNdjson } from "@/lib/ndjson";
 import { createClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
@@ -27,6 +28,8 @@ export function UploadCard() {
   const [file, setFile] = useState<File | null>(null);
   const [text, setText] = useState("");
   const [stage, setStage] = useState<number | null>(null);
+  // The pipeline says what it is doing ("Building exercises" or "Writing practice questions"), so show its words.
+  const [exercisesLabel, setExercisesLabel] = useState("Building exercises…");
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
 
@@ -79,14 +82,18 @@ export function UploadCard() {
       let courseId: string | null = null;
       await readNdjson(response, (line) => {
         const frame = line as IngestFrame;
-        if (frame.t === "progress") setStage(STAGES.findIndex((s) => s.id === frame.stage));
-        else if (frame.t === "error") throw new Error(frame.message);
+        if (frame.t === "progress") {
+          setStage(STAGES.findIndex((s) => s.id === frame.stage));
+          if (frame.stage === "exercises") setExercisesLabel(frame.message);
+        } else if (frame.t === "error") throw new Error(frame.message);
         else if (frame.t === "done") {
           courseId = frame.courseId;
           setWarnings(frame.warnings);
         }
       });
       if (!courseId) throw new Error("Something went wrong. Please try again.");
+      // Start writing the first lesson now, so it is ready when the student gets there.
+      void prefetchFirstLesson(courseId);
       router.push(`/course/${courseId}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong. Please try again.");
@@ -168,7 +175,7 @@ export function UploadCard() {
               ) : (
                 <span className="h-4 w-4" />
               )}
-              {s.label}
+              {s.id === "exercises" ? exercisesLabel : s.label}
             </li>
           ))}
         </ol>

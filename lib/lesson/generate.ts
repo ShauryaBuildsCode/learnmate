@@ -3,9 +3,11 @@ import { claudeJson } from "@/lib/ai/anthropic";
 import { MASTER_TEACHER_SYSTEM } from "@/lib/ai/prompts/master-teacher";
 import { groqJson } from "@/lib/ai/groq";
 import { MOTION_DIRECTOR_SYSTEM, motionDirectorPrompt } from "@/lib/ai/prompts/motion-director";
+import { describeLearner, loadLearner } from "@/lib/tutor/learner";
 import { courseBlock } from "@/lib/ai/prompts/tutor";
 import { AiOutputError } from "@/lib/ai/types";
 import { serverEnv } from "@/lib/env";
+import { practiceItemSchema } from "@/lib/schemas/practice";
 import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
 import { isSolid, validateScript } from "./validate";
@@ -42,28 +44,50 @@ export async function getOrCreateLesson(
     .maybeSingle();
   if (!topic) throw new LessonNotFoundError();
 
-  const [{ data: allPages }, { data: courseExercises }] = await Promise.all([
-    supabase
-      .from("course_pages")
-      .select("page_no,text")
-      .eq("course_id", topic.course_id)
-      .order("page_no"),
-    supabase
-      .from("exercises")
-      .select("id,topic_id,language,prompt,page")
-      .eq("course_id", topic.course_id),
-  ]);
+  const [{ data: allPages }, { data: courseExercises }, { data: practiceRows }] = await Promise.all(
+    [
+      supabase
+        .from("course_pages")
+        .select("page_no,text")
+        .eq("course_id", topic.course_id)
+        .order("page_no"),
+      supabase
+        .from("exercises")
+        .select("id,topic_id,language,prompt,page")
+        .eq("course_id", topic.course_id),
+      supabase.from("practice_items").select("id,topic_id,data,page").eq("topic_id", topicId),
+    ],
+  );
   const pages = allPages ?? [];
-  const exercises = (courseExercises ?? []).filter((e) => e.topic_id === topicId);
+  // Coding courses end on a coding exercise; concept courses end on an interactive practice question.
+  const codeExercises = (courseExercises ?? []).filter((e) => e.topic_id === topicId);
+  const practiceExercises = (practiceRows ?? []).flatMap((row) => {
+    const item = practiceItemSchema.safeParse(row.data);
+    if (!item.success) return [];
+    const d = item.data;
+    return [
+      {
+        id: row.id,
+        topic_id: row.topic_id,
+        language: "",
+        prompt: d.kind === "cloze" ? d.text : d.question,
+        page: row.page,
+      },
+    ];
+  });
+  const exercises = codeExercises.length ? codeExercises : practiceExercises;
   const relevant = new Set([...topic.pages, ...exercises.map((e) => e.page)]);
 
   const { data: course } = await supabase
     .from("courses")
-    .select("title")
+    .select("title,kind,language")
     .eq("id", topic.course_id)
     .maybeSingle();
   const validPages = [...relevant].sort((a, b) => a - b);
-  const allowTrace = (courseExercises ?? []).some((e) => e.language === "python");
+  const learner = await loadLearner(supabase);
+  const kind = course?.kind ?? "programming";
+  const language = course?.language ?? codeExercises[0]?.language ?? null;
+  const allowTrace = kind === "programming" && language === "python";
   const validation = {
     validPages: new Set(pages.map((p) => p.page_no)),
     exerciseIds: exercises.map((e) => e.id),
@@ -77,8 +101,20 @@ export async function getOrCreateLesson(
   const env = serverEnv();
   const director = {
     persona: `${MOTION_DIRECTOR_SYSTEM}\n\n${MASTER_TEACHER_SYSTEM}`,
-    courseBlock: courseBlock(course?.title ?? "Course", pages),
-    prompt: motionDirectorPrompt({ topic, validPages, exercises, allowTrace, uiLang }),
+    courseBlock: courseBlock(course?.title ?? "Course", pages, {
+      kind,
+      language,
+      learner: learner ? describeLearner(learner) : undefined,
+    }),
+    prompt: motionDirectorPrompt({
+      topic,
+      validPages,
+      exercises,
+      allowTrace,
+      kind,
+      language,
+      uiLang,
+    }),
   };
   const attempts: { provider: "groq" | "claude"; label: string; run: () => Promise<unknown> }[] = [
     ...[env.ANTHROPIC_MODEL, env.ANTHROPIC_FALLBACK_MODEL].map((model) => ({
@@ -88,7 +124,7 @@ export async function getOrCreateLesson(
         claudeJson({
           model,
           ...director,
-          effort: "medium",
+          effort: "low",
           maxTokens: 9000,
           task: "motion director",
         }),

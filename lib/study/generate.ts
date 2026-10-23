@@ -12,10 +12,19 @@ import {
   type StoredNotes,
 } from "@/lib/schemas/study";
 import type { Database, Json } from "@/lib/supabase/types";
+import { describeLearner, loadLearner } from "@/lib/tutor/learner";
 import { validateMindMap, validateNotes, type StudyTopic } from "./validate";
 
 type Supabase = SupabaseClient<Database>;
 type Writer = "claude" | "groq";
+
+const NOTES_CHUNK = 3;
+
+function chunk<T>(list: T[], size: number): T[][] {
+  return Array.from({ length: Math.ceil(list.length / size) }, (_, i) =>
+    list.slice(i * size, i * size + size),
+  );
+}
 
 export class CourseNotFoundError extends Error {}
 
@@ -28,8 +37,9 @@ interface CourseInputs {
 }
 
 async function loadInputs(supabase: Supabase, courseId: string): Promise<CourseInputs> {
+  const learner = await loadLearner(supabase);
   const [{ data: course }, { data: topics }, { data: pages }] = await Promise.all([
-    supabase.from("courses").select("title").eq("id", courseId).maybeSingle(),
+    supabase.from("courses").select("title,kind,language").eq("id", courseId).maybeSingle(),
     supabase
       .from("topics")
       .select("id,name,summary,pages")
@@ -43,7 +53,11 @@ async function loadInputs(supabase: Supabase, courseId: string): Promise<CourseI
     topics,
     pages,
     validPages: new Set(pages.map((p) => p.page_no)),
-    block: courseBlock(course.title, pages),
+    block: courseBlock(course.title, pages, {
+      kind: course.kind,
+      language: course.language,
+      learner: learner ? describeLearner(learner) : undefined,
+    }),
   };
 }
 
@@ -93,28 +107,39 @@ export async function getOrCreateNotes(
     if (stored.success) return { notes: stored.data, cached: true };
   }
   const c = await loadInputs(supabase, courseId);
-  const prompt = notesPrompt(c.topics, [...c.validPages], uiLang);
-  const notes = await writeWithFallback(
-    "revision notes",
-    (writer, model) =>
-      writer === "claude"
-        ? claudeJson({
-            model,
-            persona: NOTES_SYSTEM,
-            courseBlock: c.block,
-            prompt,
-            effort: "medium",
-            maxTokens: 9000,
-            task: "revision notes",
-          })
-        : groqJson({
-            system: `${NOTES_SYSTEM}\n\n${c.block}`,
-            prompt,
-            maxTokens: 8000,
-            task: "revision notes",
-          }),
-    (raw, writer) => validateNotes(raw, c.topics, c.validPages, writer).notes,
+  // Several short calls in parallel beat one long one: each writes a few topics, and they share the cached course text.
+  const chunks = chunk(c.topics, NOTES_CHUNK);
+  const parts = await Promise.all(
+    chunks.map((topics) => {
+      const prompt = notesPrompt(topics, [...c.validPages], uiLang);
+      return writeWithFallback(
+        "revision notes",
+        (writer, model) =>
+          writer === "claude"
+            ? claudeJson({
+                model,
+                persona: NOTES_SYSTEM,
+                courseBlock: c.block,
+                prompt,
+                effort: "low",
+                maxTokens: 5000,
+                task: "revision notes",
+              })
+            : groqJson({
+                system: `${NOTES_SYSTEM}\n\n${c.block}`,
+                prompt,
+                maxTokens: 5000,
+                task: "revision notes",
+              }),
+        (raw, writer) => validateNotes(raw, topics, c.validPages, writer),
+      );
+    }),
   );
+  const byId = new Map(parts.flatMap((p) => p.notes.topics).map((t) => [t.topicId, t]));
+  const notes: StoredNotes = {
+    topics: c.topics.flatMap((t) => (byId.has(t.id) ? [byId.get(t.id)!] : [])),
+    directedBy: parts[0]?.notes.directedBy,
+  };
   await supabase
     .from("study_notes")
     .upsert(
@@ -152,7 +177,7 @@ export async function getOrCreateMindMap(
             persona: MINDMAP_SYSTEM,
             courseBlock: c.block,
             prompt,
-            effort: "medium",
+            effort: "low",
             maxTokens: 6000,
             task: "mind map",
           })

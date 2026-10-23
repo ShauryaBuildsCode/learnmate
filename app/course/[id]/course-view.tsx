@@ -23,6 +23,7 @@ interface Props {
     mastery: TopicMastery | null;
   }[];
   plan: StoredPlan | null;
+  kind: "programming" | "concepts";
   hasDiagnostic: boolean;
   uiLang: "en" | "hi";
 }
@@ -33,7 +34,7 @@ const TOOLS = [
   { slug: "checklist", label: "Checklist", hint: "Track every step", Icon: CheckSquare },
 ] as const;
 
-export function CourseView({ course, topics, plan, hasDiagnostic, uiLang }: Props) {
+export function CourseView({ course, topics, plan, kind, hasDiagnostic, uiLang }: Props) {
   const router = useRouter();
   const names = Object.fromEntries(topics.map((t) => [t.id, t.name]));
 
@@ -68,14 +69,14 @@ export function CourseView({ course, topics, plan, hasDiagnostic, uiLang }: Prop
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Exercises passed</span>
+              <span>{kind === "concepts" ? "Practice questions done" : "Exercises passed"}</span>
               <span>
                 {exDone}/{exTotal}
               </span>
             </div>
             <div
               role="progressbar"
-              aria-label="Exercises passed"
+              aria-label={kind === "concepts" ? "Practice done" : "Exercises passed"}
               aria-valuenow={exTotal ? Math.round((exDone / exTotal) * 100) : 0}
               aria-valuemin={0}
               aria-valuemax={100}
@@ -175,7 +176,8 @@ export function CourseView({ course, topics, plan, hasDiagnostic, uiLang }: Prop
                         ) : (
                           <Circle className="h-3.5 w-3.5" />
                         )}
-                        {done}/{t.exercises.length} exercises passed
+                        {done}/{t.exercises.length}{" "}
+                        {kind === "concepts" ? "practice questions done" : "exercises passed"}
                       </span>
                       <span className="underline underline-offset-2 group-open:hidden">Show</span>
                       <span className="hidden underline underline-offset-2 group-open:inline">

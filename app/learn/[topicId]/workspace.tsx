@@ -10,7 +10,9 @@ import {
   type IdeHandle,
   type IdeSnapshot,
 } from "@/components/ide/ide-panel";
+import { PracticePanel, type PracticeQuestion } from "@/components/practice/practice-panel";
 import { LessonStage } from "@/components/lesson/lesson-stage";
+import { Celebrate } from "@/components/ui/celebrate";
 import { SourceProvider } from "@/components/source/source-context";
 import { GuruPanel } from "@/components/tutor/guru-panel";
 import { Button } from "@/components/ui/button";
@@ -38,6 +40,10 @@ interface Props {
   pages: Record<number, string>;
   exercises: LearnExercise[];
   passedExerciseIds: string[];
+  /** "concepts" courses have interactive practice questions instead of a code editor. */
+  kind: "programming" | "concepts";
+  practice: PracticeQuestion[];
+  practiceDoneIds: string[];
   uiLang: "en" | "hi";
 }
 
@@ -54,8 +60,15 @@ export function LearnWorkspace({
   pages,
   exercises,
   passedExerciseIds,
+  kind,
+  practice,
+  practiceDoneIds,
   uiLang,
 }: Props) {
+  const concepts = kind === "concepts";
+  const [practiceDone, setPracticeDone] = useState(() => new Set(practiceDoneIds));
+  const [practiceStart, setPracticeStart] = useState<string | null>(null);
+  const [burst, setBurst] = useState(0);
   const [lesson, setLesson] = useState<LessonState>({ status: "loading" });
   const [attempt, setAttempt] = useState(0);
   const [ideOpen, setIdeOpen] = useState(false);
@@ -127,6 +140,7 @@ export function LearnWorkspace({
 
   const onCheckpoint = useCallback((exerciseId: string) => {
     setActiveId(exerciseId);
+    setPracticeStart(exerciseId);
     setIdeOpen(true);
   }, []);
 
@@ -161,7 +175,10 @@ export function LearnWorkspace({
       setDiagnostics([]);
       setAllPassed(ok);
       setFailedChecks((n) => (ok ? 0 : n + 1));
-      if (ok) setPassed((prev) => new Set(prev).add(activeId));
+      if (ok) {
+        setPassed((prev) => new Set(prev).add(activeId));
+        setBurst((b) => b + 1);
+      }
       await createClient()
         .from("exercise_runs")
         .insert({
@@ -213,6 +230,7 @@ export function LearnWorkspace({
 
   return (
     <SourceProvider pages={pages}>
+      <Celebrate burst={burst} />
       <div className="flex h-screen flex-col">
         <header className="flex items-center gap-3 border-b px-4 py-2">
           <Link
@@ -234,7 +252,13 @@ export function LearnWorkspace({
               ) : (
                 <PanelRightOpen className="h-4 w-4" />
               )}
-              {ideOpen ? "Hide editor" : "Open editor"}
+              {concepts
+                ? ideOpen
+                  ? "Hide practice"
+                  : "Open practice"
+                : ideOpen
+                  ? "Hide editor"
+                  : "Open editor"}
             </Button>
             <LangToggle />
             <ThemeToggle />
@@ -247,7 +271,7 @@ export function LearnWorkspace({
               <div className="space-y-3" aria-busy="true">
                 <Skeleton className="aspect-video w-full" />
                 <p className="text-sm text-muted-foreground">
-                  Gemini is writing your lesson from your pages…
+                  Claude is writing your lesson from your pages…
                 </p>
               </div>
             )}
@@ -314,7 +338,25 @@ export function LearnWorkspace({
                 </Link>
               </div>
             )}
-            {exercises.length > 0 && (
+            {concepts && practice.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="text-sm font-semibold">Practice</h2>
+                <button
+                  onClick={() => {
+                    setPracticeStart(null);
+                    setIdeOpen(true);
+                  }}
+                  className="flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm hover:bg-muted"
+                >
+                  {practiceDone.size >= practice.length && (
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                  )}
+                  Practice questions · {practice.filter((p) => practiceDone.has(p.id)).length}/
+                  {practice.length} done
+                </button>
+              </div>
+            )}
+            {!concepts && exercises.length > 0 && (
               <div className="space-y-2">
                 <h2 className="text-sm font-semibold">Practice</h2>
                 <div className="flex flex-wrap gap-2">
@@ -338,22 +380,36 @@ export function LearnWorkspace({
           </section>
 
           <motion.aside
-            aria-label="Code editor"
+            aria-label={concepts ? "Practice" : "Code editor"}
             initial={false}
             animate={{ width: ideOpen ? "52%" : 0, opacity: ideOpen ? 1 : 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 32 }}
             className="min-w-0 overflow-hidden border-l"
           >
             <div className="h-full min-w-[420px]">
-              <IdePanel
-                key={exercise?.id ?? "scratch"}
-                exercise={exercise}
-                diagnostics={diagnostics}
-                onSnapshot={onSnapshot}
-                onCheck={onCheck}
-                onAskGuru={() => setAskRequest((n) => n + 1)}
-                ref={ide}
-              />
+              {concepts ? (
+                <PracticePanel
+                  userId={userId}
+                  questions={practice}
+                  doneIds={[...practiceDone]}
+                  startId={practiceStart}
+                  onCorrect={(id) => {
+                    setPracticeDone((prev) => new Set(prev).add(id));
+                    setBurst((b) => b + 1);
+                  }}
+                  onAskGuru={() => setAskRequest((n) => n + 1)}
+                />
+              ) : (
+                <IdePanel
+                  key={exercise?.id ?? "scratch"}
+                  exercise={exercise}
+                  diagnostics={diagnostics}
+                  onSnapshot={onSnapshot}
+                  onCheck={onCheck}
+                  onAskGuru={() => setAskRequest((n) => n + 1)}
+                  ref={ide}
+                />
+              )}
             </div>
           </motion.aside>
         </div>

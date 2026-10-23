@@ -26,7 +26,11 @@ export async function POST(request: Request) {
   try {
     const result = await claudeStructured({
       persona: GURU_PERSONA,
-      courseBlock: courseBlock(course.title, course.pages),
+      courseBlock: courseBlock(course.title, course.pages, {
+        kind: course.kind,
+        language: course.language,
+        learner: course.learner,
+      }),
       turns: [{ role: "user", content: buildDiagnosePrompt(context, uiLang) }],
       schema: outputSchema,
     });

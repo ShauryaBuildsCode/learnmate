@@ -75,6 +75,8 @@ describe("ingest sanitising", () => {
   const map: TopicMap = {
     title: "T",
     subject: "S",
+    kind: "programming",
+    language: "python",
     topics: [
       { name: "A", summary: "aaaaaaaaaaaa", pages: [1, 99] },
       { name: "B", summary: "bbbbbbbbbbbb", pages: [2] },

@@ -64,6 +64,8 @@ export interface IdeSnapshot {
 
 interface Props {
   exercise: IdeExercise | null;
+  /** Language to start a blank scratch pad in. */
+  defaultLanguage?: Language;
   diagnostics: Diagnostic[];
   onSnapshot: (snapshot: IdeSnapshot) => void;
   onCheck?: (results: TestResult[], files: Files, language: Language) => void;
@@ -81,8 +83,16 @@ export interface IdeHandle {
 type BottomTab = "console" | "tests" | "preview" | "input";
 
 /** Mount with `key={exercise.id}` so a new exercise starts from its own starter files. */
-export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru, ref }: Props) {
-  const initialLanguage = exercise?.language ?? "python";
+export function IdePanel({
+  exercise,
+  defaultLanguage,
+  diagnostics,
+  onSnapshot,
+  onCheck,
+  onAskGuru,
+  ref,
+}: Props) {
+  const initialLanguage = exercise?.language ?? defaultLanguage ?? "python";
   const [language, setLanguage] = useState<Language>(initialLanguage);
   const [files, setFiles] = useState<Files>(exercise?.starterFiles ?? TEMPLATES[initialLanguage]);
   const [active, setActive] = useState(Object.keys(files)[0]);
@@ -104,7 +114,7 @@ export function IdePanel({ exercise, diagnostics, onSnapshot, onCheck, onAskGuru
   const isScratch = !exercise || exercise.language !== language;
   const hasPreview = language === "html" || language === "react";
 
-  useEffect(() => preloadPython(), []);
+  useEffect(() => (initialLanguage === "python" ? preloadPython() : undefined), [initialLanguage]);
 
   const load = useCallback((lang: Language, next: Files) => {
     setLanguage(lang);

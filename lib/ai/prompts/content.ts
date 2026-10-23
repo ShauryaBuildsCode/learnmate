@@ -18,20 +18,23 @@ export function pagesBlock(pages: { page_no: number; text: string }[]): string {
 export function topicMapPrompt(fallbackTitle: string): string {
   return `Task: structure this material into a topic map.
 - "title": a short course title (use "${fallbackTitle}" if the material has none).
-- "subject": the single subject area (for example "Python programming").
+- "subject": the single subject area (for example "JavaScript programming", "Cell biology", "Indian history").
+- "kind": "programming" if the material teaches how to write code in a language we can run (python, javascript, html, react, c, cpp, java, go or rust), otherwise "concepts". Mathematics, science, history, languages, business, law, medicine, and code in languages not listed (SQL, PHP, Ruby, Swift...) are "concepts".
+- "language": for "programming", the ONE language the material mostly teaches: "javascript" (also TypeScript and Node), "html" (HTML and CSS pages), "react" (React / JSX), or one of the other listed languages. For "concepts", "none".
 - "topics": between 5 and 8 topics, in the order a student should learn them. Each has a short "name", a one-sentence "summary" a beginner can understand, and "pages": the page numbers (from the <page n=...> tags) where the topic is taught. Cover every important part of the material. Worksheets or exercise pages belong to the topic they practise.`;
 }
 
 export function exercisesPrompt(
   topics: { name: string; summary: string; pages: number[] }[],
+  language: string,
 ): string {
   const list = topics.map((t, i) => `${i}: ${t.name} (pages ${t.pages.join(", ")})`).join("\n");
   return `Topics (use the number before the colon as "topicIndex"):
 ${list}
 
-Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches. Make sure EVERY topic ends up with at least one exercise: when the worksheet does not cover a topic, write one small extra practice exercise for it from that topic's pages.
+Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. This course teaches ${language}: EVERY exercise must be in ${language} (use the file names and test style for it), and its examples, names and style should match the material. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches. Make sure EVERY topic ends up with at least one exercise: when the worksheet does not cover a topic, write one small extra practice exercise for it from that topic's pages.
 For each exercise:
-- "language": the programming language the material uses (python, javascript, html, react, c, cpp, java, go or rust).
+- "language": always "${language}".
 - "prompt": the task in plain English, including the exact function name and what it must return.
 - "starterFiles": a map of file name to starter code. Python uses "main.py", JavaScript "main.js", HTML "index.html"/"style.css"/"script.js", React "App.js", C "main.c", C++ "main.cpp", Java "Main.java" (class Main), Go "main.go", Rust "main.rs". The starter must define the function with a TODO and must FAIL the tests as written.
 - "referenceSolution": the same file names with a correct, complete solution that passes every test.

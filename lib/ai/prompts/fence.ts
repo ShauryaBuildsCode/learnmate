@@ -3,6 +3,7 @@ export const UNTRUSTED_TAGS = [
   "student_code",
   "run_output",
   "student_question",
+  "student_answer",
   "lesson_context",
   "tutor_policy",
 ] as const;

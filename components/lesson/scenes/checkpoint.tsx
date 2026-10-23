@@ -84,7 +84,7 @@ export function Checkpoint({ scene }: Props) {
               opacity: card,
             }}
           >
-            The editor is opening on the right →
+            Your turn is opening on the right →
           </div>
         </div>
       </div>

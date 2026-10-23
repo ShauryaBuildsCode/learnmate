@@ -84,7 +84,7 @@ async function writeQuestions(input: {
               persona: QUIZ_SYSTEM,
               courseBlock: input.context,
               prompt: input.prompt,
-              effort: "medium",
+              effort: "low",
               maxTokens: 6000,
               task: "quiz",
             })

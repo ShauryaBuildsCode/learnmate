@@ -37,11 +37,26 @@ export function languageRule(uiLang: "en" | "hi"): string {
     : "Reply in simple, friendly English.";
 }
 
-export function courseBlock(title: string, pages: { page_no: number; text: string }[]): string {
+export function courseBlock(
+  title: string,
+  pages: { page_no: number; text: string }[],
+  /** Course kind, language and a note about the student: stays the same for every call, so it caches with the pages. */
+  meta?: { kind?: "programming" | "concepts"; language?: string | null; learner?: string },
+): string {
   const body = pages
     .map((p) => `<page n="${p.page_no}">\n${defangInstructions(p.text)}\n</page>`)
     .join("\n");
-  return `Course: ${title}\n${fence("course_material", body)}`;
+  const about = [
+    meta?.kind === "concepts"
+      ? "This course is about concepts, not programming: do not show or write code unless the student asks."
+      : meta?.language
+        ? `This is a programming course in ${meta.language}: write every code example and fix in ${meta.language}.`
+        : "",
+    meta?.learner ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  return `Course: ${title}${about ? `\n${about}` : ""}\n${fence("course_material", body)}`;
 }
 
 export interface TutorPolicy {

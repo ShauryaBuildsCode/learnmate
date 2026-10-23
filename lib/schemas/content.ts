@@ -1,9 +1,13 @@
 import { z } from "zod";
-import { filesSchema, languageSchema, testCaseSchema } from "./exercise";
+import { filesSchema, LANGUAGES, languageSchema, testCaseSchema } from "./exercise";
 
 export const topicMapSchema = z.object({
   title: z.string().min(2).max(100),
   subject: z.string().min(2).max(60),
+  /** "programming" when the material teaches writing code we can run; otherwise "concepts" (practice questions, no editor). */
+  kind: z.enum(["programming", "concepts"]),
+  /** The one language the material teaches, or "none" for concepts. */
+  language: z.enum([...LANGUAGES, "none"]),
   topics: z
     .array(
       z.object({

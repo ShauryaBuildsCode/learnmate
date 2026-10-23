@@ -68,19 +68,22 @@ export async function groqJson(input: {
   prompt: string;
   maxTokens: number;
   task: string;
+  /** Lower is faster; short grading tasks use "low". */
+  effort?: "low" | "medium" | "high";
+  timeoutMs?: number;
 }): Promise<unknown> {
   const response = await groq().chat.completions.create(
     {
       model: input.model ?? serverEnv().GROQ_LESSON_MODEL,
       max_tokens: input.maxTokens,
       temperature: 0.5,
-      reasoning_effort: "medium",
+      reasoning_effort: input.effort ?? "medium",
       messages: [
         { role: "system", content: input.system },
         { role: "user", content: input.prompt },
       ],
     },
-    { timeout: LONG_TIMEOUT_MS, maxRetries: 0 },
+    { timeout: input.timeoutMs ?? LONG_TIMEOUT_MS, maxRetries: 0 },
   );
   const cached = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
   logUsage("groq", input.task, {

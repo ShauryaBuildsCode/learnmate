@@ -14,7 +14,7 @@ export default async function CoursePage({ params }: PageProps<"/course/[id]">) 
 
   const { data: course } = await supabase
     .from("courses")
-    .select("id,title,subject,page_count")
+    .select("id,title,subject,page_count,kind")
     .eq("id", id)
     .maybeSingle();
   if (!course) notFound();
@@ -51,6 +51,7 @@ export default async function CoursePage({ params }: PageProps<"/course/[id]">) 
         mastery: snapshot.attempts.length ? (mastery[t.id] ?? null) : null,
       }))}
       plan={planRow ? parsePlanRow(planRow) : null}
+      kind={course.kind}
       hasDiagnostic={snapshot.attempts.length > 0}
       uiLang={profile?.ui_lang ?? "en"}
     />

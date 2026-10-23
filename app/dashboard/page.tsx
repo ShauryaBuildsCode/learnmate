@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import {
   ArrowRight,
   BarChart3,
@@ -156,9 +157,15 @@ export default async function DashboardPage() {
   const [o, { data: profile }] = await Promise.all([
     loadOverview(supabase),
     user
-      ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+      ? supabase
+          .from("profiles")
+          .select("display_name,onboarded_at")
+          .eq("id", user.id)
+          .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
+  // First visit after sign-up: the animated welcome comes first.
+  if (user && profile && !profile.onboarded_at) redirect("/welcome");
   const next = o.courses.find((c) => c.next);
   const first = profile?.display_name?.split(/\s+/)[0];
 

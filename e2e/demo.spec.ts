@@ -96,6 +96,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await expect(page.getByText(/^0 of \d+ tests passed$/)).toBeVisible();
 
   // Guru: hint ladder, then a grounded question with a page citation
+  await page.getByRole("button", { name: "Open Guru" }).click();
   const guru = page.getByRole("complementary", { name: "Guru tutor" });
   await guru.getByRole("button", { name: /Hint 1\/3/ }).click();
   await expect(guru.getByText("Claude").first()).toBeVisible({ timeout: 90_000 });
@@ -142,6 +143,7 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
   await page.goto(
     `/learn/${(await client.from("topics").select("id").eq("course_id", courseId).order("position").limit(1).single()).data!.id}`,
   );
+  await page.getByRole("button", { name: "Open Guru" }).click();
   const guru2 = page.getByRole("complementary", { name: "Guru tutor" });
   await guru2.getByLabel("Ask Guru").fill("how do I use pandas?");
   await guru2.getByRole("button", { name: "Send" }).click();

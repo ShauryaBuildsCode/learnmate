@@ -150,7 +150,11 @@ export function GuruPanel({
   onDiagnostics,
   onEdits,
 }: Props) {
-  const [open, setOpen] = useState(true);
+  // Closed by default so the lesson and editor get the whole screen; wide screens have room for it open.
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (window.innerWidth >= 1536) setOpen(true);
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
@@ -364,6 +368,7 @@ export function GuruPanel({
   if (askRequest !== seenAsk) {
     setSeenAsk(askRequest);
     setOpen(true);
+    setOpen(true);
     setInput("Can you look at my code and tell me what to try next?");
   }
   useEffect(() => {
@@ -375,9 +380,16 @@ export function GuruPanel({
       <button
         aria-label="Open Guru"
         onClick={() => setOpen(true)}
-        className="fixed bottom-4 right-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg"
+        className="fixed bottom-4 right-4 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-sm font-medium text-primary-foreground shadow-lg transition-transform hover:scale-105"
       >
-        <Bot className="h-6 w-6" />
+        <Bot className="h-5 w-5" />
+        <span className="hidden sm:inline">Ask Guru</span>
+        {nudge && (
+          <span
+            aria-hidden="true"
+            className="absolute -right-0.5 -top-0.5 h-3 w-3 animate-pulse rounded-full bg-warning ring-2 ring-background"
+          />
+        )}
       </button>
     );
   }

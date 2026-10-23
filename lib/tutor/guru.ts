@@ -6,6 +6,7 @@ import type { TutorTurn } from "@/lib/ai/types";
 import { groundAnswer, toPageMap } from "@/lib/grounding";
 import { EDIT_CODE_TOOL, fromToolInput, validateEdits } from "@/lib/ide/edits";
 import { withholdSolution } from "./solution-guard";
+import { describeLearner, loadLearner } from "./learner";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 
@@ -15,12 +16,15 @@ export interface CourseData {
   id: string;
   title: string;
   pages: { page_no: number; text: string }[];
+  kind?: "programming" | "concepts";
+  language?: string | null;
+  learner?: string;
 }
 
 export async function loadCourse(supabase: Supabase, courseId: string): Promise<CourseData | null> {
   const { data: course } = await supabase
     .from("courses")
-    .select("id,title")
+    .select("id,title,kind,language")
     .eq("id", courseId)
     .maybeSingle();
   if (!course) return null;
@@ -29,7 +33,15 @@ export async function loadCourse(supabase: Supabase, courseId: string): Promise<
     .select("page_no,text")
     .eq("course_id", courseId)
     .order("page_no");
-  return { id: course.id, title: course.title, pages: pages ?? [] };
+  const learner = await loadLearner(supabase);
+  return {
+    id: course.id,
+    title: course.title,
+    pages: pages ?? [],
+    kind: course.kind,
+    language: course.language,
+    learner: learner ? describeLearner(learner) : undefined,
+  };
 }
 
 const MAX_HISTORY_TURNS = 8;
@@ -94,7 +106,11 @@ export function guruResponse(call: GuruCall): Response {
       try {
         for await (const event of streamTutor({
           persona: GURU_PERSONA,
-          courseBlock: courseBlock(call.course.title, call.course.pages),
+          courseBlock: courseBlock(call.course.title, call.course.pages, {
+            kind: call.course.kind,
+            language: call.course.language,
+            learner: call.course.learner,
+          }),
           turns,
           effort: call.effort,
           maxTokens: 2000,
