@@ -6,7 +6,7 @@ import { ThemeToggle } from "./theme-toggle";
 
 export function SiteHeader({ children }: { children?: React.ReactNode }) {
   return (
-    <header className="border-b bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-30 border-b bg-background/80 shadow-[0_1px_0_rgb(var(--shadow-color)/0.02)] backdrop-blur-xl">
       <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4 sm:px-6">
         <Link href="/dashboard" aria-label="LearnMate dashboard" className="rounded-md">
           <Logo />

@@ -1,52 +1,26 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  ClipboardCheck,
+  ChevronDown,
   Code2,
-  FileUp,
-  Map,
   MessageCircle,
   PlayCircle,
   type LucideIcon,
 } from "lucide-react";
+import { AnimatedAuroraBackground } from "@/components/design/animated-aurora-background";
+import { LearningJourney } from "@/components/design/learning-journey";
+import { FloatingProductPreview } from "@/components/design/floating-product-preview";
+import { InteractiveFeatureCard } from "@/components/design/interactive-feature-card";
+import { LandingHeader } from "@/components/design/landing-header";
 import { Logo } from "@/components/design/logo";
+import { Reveal, Stagger, StaggerItem } from "@/components/design/motion-primitives";
 import { ProductPreview } from "@/components/design/product-preview";
-import { Card } from "@/components/ui/card";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { createClient } from "@/lib/supabase/server";
 
 const linkButton =
-  "inline-flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-sm font-medium transition-[background-color,opacity,transform] duration-150 active:scale-[0.98]";
-const primaryLink = `${linkButton} bg-primary text-primary-foreground shadow-xs hover:opacity-90`;
-const outlineLink = `${linkButton} border bg-card shadow-xs hover:bg-muted`;
-
-const STEPS: { icon: LucideIcon; title: string; body: string }[] = [
-  {
-    icon: FileUp,
-    title: "Upload your notes",
-    body: "Drop in a PDF or paste text. LearnMate pulls out the topics for you.",
-  },
-  {
-    icon: ClipboardCheck,
-    title: "Take a short diagnostic",
-    body: "A few questions show what you already know and where the gaps are.",
-  },
-  {
-    icon: Map,
-    title: "Get your plan",
-    body: "A personal path through the topics, ordered by what you need most.",
-  },
-  {
-    icon: PlayCircle,
-    title: "Watch it explained",
-    body: "Animated walkthroughs of real code, with checkpoints that make you think.",
-  },
-  {
-    icon: Code2,
-    title: "Practise with Guru",
-    body: "Write code in the built-in editor while your tutor reads it.",
-  },
-];
+  "button-shine relative isolate inline-flex h-10 items-center justify-center gap-2 overflow-hidden rounded-lg px-4 text-sm font-medium transition-[background-color,border-color,box-shadow,opacity,transform] duration-200 ease-out hover:-translate-y-px active:translate-y-0 active:scale-[0.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground";
+const primaryLink = `${linkButton} bg-primary text-primary-foreground shadow-sm hover:shadow-md hover:opacity-90`;
+const outlineLink = `${linkButton} border bg-card shadow-xs hover:border-muted-foreground/40 hover:bg-muted hover:shadow-sm`;
 
 const FEATURES: { icon: LucideIcon; title: string; body: string }[] = [
   {
@@ -74,140 +48,142 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
-        <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Link href="/" aria-label="LearnMate home" className="rounded-md">
-            <Logo />
-          </Link>
-          <nav className="flex items-center gap-1 sm:gap-2" aria-label="Main">
-            <a
-              href="#how-it-works"
-              className="hidden rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground sm:block"
-            >
-              How it works
-            </a>
-            {user ? (
-              <Link href="/dashboard" className={`${primaryLink} h-8 px-3`}>
-                Dashboard
-              </Link>
-            ) : (
-              <>
-                <Link
-                  href="/signin"
-                  className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  Sign in
-                </Link>
-                <Link href="/signup" className={`${primaryLink} h-8 px-3`}>
-                  Sign up
-                </Link>
-              </>
-            )}
-            <ThemeToggle />
-          </nav>
-        </div>
-      </header>
+      <LandingHeader signedIn={Boolean(user)} />
 
       <main className="flex-1">
-        <section className="relative overflow-hidden">
+        <section className="hero-cinematic relative overflow-hidden">
+          <AnimatedAuroraBackground />
           <div
             aria-hidden="true"
-            className="bg-dots pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]"
+            className="bg-dots pointer-events-none absolute inset-0 -z-[1] opacity-55 [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]"
           />
-          <div className="relative mx-auto w-full max-w-6xl px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24">
-            <p className="mx-auto mb-5 w-fit rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground shadow-xs">
-              Learn by doing
-            </p>
-            <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-tight text-balance sm:text-6xl">
-              Turn your study material into something you can learn by doing.
-            </h1>
-            <p className="mx-auto mt-5 max-w-xl text-base text-pretty text-muted-foreground sm:text-lg">
-              Upload a chapter. LearnMate finds the topics, finds what you don&apos;t know yet, and
-              builds a lesson, a coding workspace and a revision plan around you.
-            </p>
-            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Link href={user ? "/dashboard" : "/signup"} className={`${primaryLink} h-11 px-6`}>
-                {user ? "Open dashboard" : "Get started"}
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
-              <Link href="/scenes" className={`${outlineLink} h-11 px-6`}>
-                See a lesson
-              </Link>
+          <div className="relative mx-auto w-full max-w-6xl px-4 pt-20 pb-14 text-center sm:px-6 sm:pt-28 lg:pt-32">
+            <div>
+              <p className="hero-label-enter mx-auto mb-6 w-fit rounded-full border bg-card/65 px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur-xl">
+                Learn by doing
+              </p>
+              <h1 className="text-gradient mx-auto max-w-5xl text-4xl leading-[0.96] font-semibold tracking-[-0.045em] sm:text-6xl lg:text-[5rem]">
+                <span className="hero-line">
+                  <span>Turn your study material</span>
+                </span>
+                <span className="hero-line">
+                  <span>into something you can</span>
+                </span>
+                <span className="hero-line">
+                  <span>learn by doing.</span>
+                </span>
+              </h1>
+              <p className="hero-copy-enter mx-auto mt-7 max-w-2xl text-base leading-7 text-pretty text-muted-foreground sm:text-lg">
+                Upload a chapter. LearnMate finds the topics, finds what you don&apos;t know yet,
+                and builds a lesson, a coding workspace and a revision plan around you.
+              </p>
+              <div className="hero-actions-enter mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+                <Link
+                  href={user ? "/dashboard" : "/signup"}
+                  className={`${primaryLink} group h-11 px-6`}
+                >
+                  {user ? "Open dashboard" : "Get started"}
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+                <Link href="/scenes" className={`${outlineLink} h-11 px-6`}>
+                  See a lesson
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="relative mx-auto w-full max-w-5xl px-4 pb-20 sm:px-6">
-            <ProductPreview />
+          <div className="hero-preview-enter relative mx-auto w-full max-w-5xl px-4 sm:px-6">
+            <div className="hero-preview-glow" aria-hidden="true" />
+            <FloatingProductPreview>
+              <ProductPreview />
+            </FloatingProductPreview>
           </div>
+          <a
+            href="#how-it-works"
+            className="hero-scroll-enter group relative mx-auto mt-10 mb-8 flex w-fit flex-col items-center gap-2 rounded-lg px-3 py-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-foreground sm:mt-12 sm:mb-10"
+          >
+            Explore the journey
+            <span className="flex h-8 w-5 items-start justify-center rounded-full border border-foreground/20 p-1">
+              <ChevronDown className="hero-scroll-dot h-3 w-3" aria-hidden="true" />
+            </span>
+          </a>
         </section>
 
         <section
           id="how-it-works"
-          className="scroll-mt-14 border-t bg-muted/50 py-20"
+          className="brand-section brand-section--journey scroll-mt-14 border-t py-20"
           aria-labelledby="how-heading"
         >
           <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-            <h2 id="how-heading" className="text-3xl font-semibold tracking-tight">
-              From notes to understanding
-            </h2>
-            <p className="mt-3 max-w-xl text-muted-foreground">
-              Five steps, and each one builds on the last.
-            </p>
-            <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-              {STEPS.map((s, i) => (
-                <li key={s.title}>
-                  <Card className="h-full">
-                    <div className="mb-4 flex items-center justify-between">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent">
-                        <s.icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="text-xs font-medium text-muted-foreground">0{i + 1}</span>
-                    </div>
-                    <h3 className="font-medium">{s.title}</h3>
-                    <p className="mt-1.5 text-sm text-muted-foreground">{s.body}</p>
-                  </Card>
-                </li>
-              ))}
-            </ol>
+            <LearningJourney />
           </div>
         </section>
 
-        <section className="py-20" aria-labelledby="features-heading">
+        <section
+          className="brand-section brand-section--features py-20"
+          aria-labelledby="features-heading"
+        >
           <div className="mx-auto w-full max-w-6xl px-4 sm:px-6">
-            <h2 id="features-heading" className="text-3xl font-semibold tracking-tight">
-              Built around practice
-            </h2>
-            <div className="mt-10 grid gap-6 md:grid-cols-3">
+            <Reveal className="scroll-reveal">
+              <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-muted-foreground uppercase">
+                Designed for momentum
+              </p>
+              <h2
+                id="features-heading"
+                className="text-3xl font-semibold tracking-tight sm:text-4xl"
+              >
+                Built around practice
+              </h2>
+            </Reveal>
+            <Stagger className="scroll-reveal mt-10 grid gap-4 md:grid-cols-3">
               {FEATURES.map((f) => (
-                <div key={f.title}>
-                  <f.icon className="h-5 w-5" aria-hidden="true" />
-                  <h3 className="mt-3 font-medium">{f.title}</h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground">{f.body}</p>
-                </div>
+                <StaggerItem key={f.title}>
+                  <InteractiveFeatureCard className="p-6">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent transition-transform duration-300 group-hover:rotate-[-3deg] group-hover:scale-105">
+                      <f.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-5 font-medium">{f.title}</h3>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{f.body}</p>
+                  </InteractiveFeatureCard>
+                </StaggerItem>
               ))}
-            </div>
+            </Stagger>
           </div>
         </section>
 
         <section className="px-4 pb-20 sm:px-6">
-          <div className="mx-auto flex w-full max-w-4xl flex-col items-center rounded-2xl bg-primary px-6 py-14 text-center text-primary-foreground">
-            <h2 className="text-3xl font-semibold tracking-tight text-balance">
-              Ready to learn something by doing it?
-            </h2>
-            <p className="mt-3 max-w-md text-primary-foreground/70">
-              Bring one chapter of notes. Leave with a lesson, a plan and a tutor.
-            </p>
-            <Link
-              href={user ? "/dashboard" : "/signup"}
-              className={`${linkButton} mt-7 h-11 bg-primary-foreground px-6 text-primary hover:opacity-90`}
-            >
-              {user ? "Open dashboard" : "Get started"}
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
-            </Link>
-          </div>
+          <Reveal className="scroll-reveal scroll-reveal--scale mx-auto w-full max-w-4xl">
+            <div className="brand-cta relative flex w-full flex-col items-center overflow-hidden rounded-3xl bg-primary px-6 py-14 text-center text-primary-foreground shadow-lg sm:py-16">
+              <div
+                className="bg-dots pointer-events-none absolute inset-0 opacity-20"
+                aria-hidden="true"
+              />
+              <div className="relative flex flex-col items-center">
+                <h2 className="text-3xl font-semibold tracking-tight text-balance">
+                  Ready to learn something by doing it?
+                </h2>
+                <p className="mt-3 max-w-md text-primary-foreground/70">
+                  Bring one chapter of notes. Leave with a lesson, a plan and a tutor.
+                </p>
+                <Link
+                  href={user ? "/dashboard" : "/signup"}
+                  className={`${linkButton} group mt-7 h-11 bg-primary-foreground px-6 text-primary shadow-md hover:shadow-lg hover:opacity-90`}
+                >
+                  {user ? "Open dashboard" : "Get started"}
+                  <ArrowRight
+                    className="h-4 w-4 transition-transform group-hover:translate-x-0.5"
+                    aria-hidden="true"
+                  />
+                </Link>
+              </div>
+            </div>
+          </Reveal>
         </section>
       </main>
 
-      <footer className="border-t py-8">
+      <footer className="brand-footer border-t py-8">
         <div className="mx-auto flex w-full max-w-6xl flex-col items-center justify-between gap-3 px-4 text-sm text-muted-foreground sm:flex-row sm:px-6">
           <Logo />
           <p>Learn by doing.</p>
