@@ -8,8 +8,8 @@ const serverSchema = z.object({
   ANTHROPIC_MODEL: z.string().min(1).default("claude-opus-5-5"),
   GROQ_API_KEY: z.string().min(1),
   GROQ_MODEL: z.string().min(1).default("llama-3.3-70b-versatile"),
-  JUDGE0_URL: z.string().url(),
-  JUDGE0_API_KEY: z.string().optional(),
+  ONLINECOMPILER_API_KEY: z.string().min(1),
+  ONLINECOMPILER_URL: z.string().url().default("https://api.onlinecompiler.io"),
 });
 
 const publicSchema = z.object({
@@ -45,7 +45,7 @@ let cachedServer: ServerEnv | undefined;
 export function serverEnv(): ServerEnv {
   cachedServer ??= parse(serverSchema, {
     ...process.env,
-    JUDGE0_API_KEY: process.env.JUDGE0_API_KEY || undefined,
+    ONLINECOMPILER_URL: process.env.ONLINECOMPILER_URL || undefined,
   });
   return cachedServer;
 }

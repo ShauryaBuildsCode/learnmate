@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { NextResponse } from "next/server";
 import { authorize, isResponse, jsonError } from "@/lib/api";
-import { Judge0UnavailableError, runOnJudge0, type ServerLanguage } from "@/lib/runners/judge0";
+import {
+  RunnerUnavailableError,
+  runOnCompiler,
+  type ServerLanguage,
+} from "@/lib/runners/onlinecompiler";
 import {
   filesSchema,
   MAIN_FILE,
@@ -14,12 +18,12 @@ const bodySchema = z.object({
   language: z.enum(["c", "cpp", "java", "go", "rust"]),
   files: filesSchema,
   stdin: z.string().max(10_000).default(""),
-  tests: z.array(testCaseSchema).max(12).optional(),
+  tests: z.array(testCaseSchema).max(8).optional(),
 });
 
 const normalize = (text: string) => text.replace(/\r\n/g, "\n").trim();
 
-/** Forwards compiled-language runs to Judge0. User code never executes on this server. */
+/** Forwards compiled-language runs to onlinecompiler.io. User code never executes on this server. */
 export async function POST(request: Request) {
   const auth = await authorize("run");
   if (isResponse(auth)) return auth;
@@ -34,29 +38,36 @@ export async function POST(request: Request) {
   const lang = language as ServerLanguage;
 
   try {
-    if (!tests) return NextResponse.json({ result: await runOnJudge0(lang, source, stdin) });
+    if (!tests) return NextResponse.json({ result: await runOnCompiler(lang, source, stdin) });
 
-    const results: TestResult[] = await Promise.all(
-      tests.map(async (t) => {
-        if (t.kind !== "io")
-          return { name: t.name, passed: false, message: "Unsupported test type." };
-        const out = await runOnJudge0(lang, source, t.stdin);
-        if (out.exitCode !== 0) {
-          return { name: t.name, passed: false, message: out.stderr || "The program crashed." };
-        }
-        const passed = normalize(out.stdout) === normalize(t.expected);
-        return {
+    // Sequential: the free plan allows only 2 concurrent runs, so parallel tests would hit 429s.
+    const results: TestResult[] = [];
+    for (const t of tests) {
+      if (t.kind !== "io") {
+        results.push({ name: t.name, passed: false, message: "Unsupported test type." });
+        continue;
+      }
+      const out = await runOnCompiler(lang, source, t.stdin);
+      if (out.exitCode !== 0) {
+        results.push({
           name: t.name,
-          passed,
-          message: passed
-            ? undefined
-            : `Expected "${normalize(t.expected)}" but got "${normalize(out.stdout)}"`,
-        };
-      }),
-    );
+          passed: false,
+          message: out.stderr || "The program crashed.",
+        });
+        continue;
+      }
+      const passed = normalize(out.stdout) === normalize(t.expected);
+      results.push({
+        name: t.name,
+        passed,
+        message: passed
+          ? undefined
+          : `Expected "${normalize(t.expected)}" but got "${normalize(out.stdout)}"`,
+      });
+    }
     return NextResponse.json({ results });
   } catch (error) {
-    if (error instanceof Judge0UnavailableError) return jsonError(503, error.message);
+    if (error instanceof RunnerUnavailableError) return jsonError(503, error.message);
     return jsonError(500, "Something went wrong running your code. Please try again.");
   }
 }
