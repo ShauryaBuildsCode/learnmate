@@ -6,6 +6,7 @@ import {
   ListChecks,
   Network,
   PlayCircle,
+  Route,
   Trophy,
   Upload,
   type LucideIcon,
@@ -16,6 +17,8 @@ export interface StoryStage {
   /** Short stepper label. */
   label: string;
   icon: LucideIcon;
+  /** Which of the four How it works steps this stage belongs to (0 to 3). */
+  step: 0 | 1 | 2 | 3;
   /** Falling headline on the left. */
   title: string;
   body: string;
@@ -31,6 +34,7 @@ const b3 = "var(--brand-3)";
 export const STORY_STAGES: readonly StoryStage[] = [
   {
     id: "upload",
+    step: 0,
     label: "Upload",
     icon: Upload,
     title: "Start with your own notes.",
@@ -39,6 +43,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "read",
+    step: 0,
     label: "Read",
     icon: BookOpenText,
     title: "Watch a PDF get understood.",
@@ -47,6 +52,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "map",
+    step: 0,
     label: "Map",
     icon: Network,
     title: "Turn it into a mind map.",
@@ -55,6 +61,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "quiz",
+    step: 1,
     label: "Quiz",
     icon: ListChecks,
     title: "Discover what you don't know.",
@@ -62,7 +69,17 @@ export const STORY_STAGES: readonly StoryStage[] = [
     glow: [b3, b2, b1],
   },
   {
+    id: "plan",
+    step: 1,
+    label: "Plan",
+    icon: Route,
+    title: "Your learning path. Built around you.",
+    body: "Weak topics move to the front of a revision plan, so you spend time where it counts.",
+    glow: [b1, b3, b2],
+  },
+  {
     id: "learn",
+    step: 1,
     label: "Learn",
     icon: PlayCircle,
     title: "See the idea run.",
@@ -71,6 +88,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "web",
+    step: 1,
     label: "Web",
     icon: Globe,
     title: "Watch markup become a page.",
@@ -79,6 +97,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "code",
+    step: 2,
     label: "Code",
     icon: Code2,
     title: "Don't just watch. Build.",
@@ -87,6 +106,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "guru",
+    step: 2,
     label: "Guru",
     icon: Bot,
     title: "Get unstuck. Learn why.",
@@ -95,6 +115,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
   },
   {
     id: "mastery",
+    step: 3,
     label: "Mastery",
     icon: Trophy,
     title: "See how far you've come.",
@@ -104,4 +125,24 @@ export const STORY_STAGES: readonly StoryStage[] = [
 ] as const;
 
 /** Stages whose scene follows the subject switcher. */
-export const SUBJECT_STAGES: readonly number[] = [2, 4];
+export const SUBJECT_STAGES: readonly number[] = [2, 5];
+
+/** The four steps of the landing page's How it works story, in the page's own words. */
+export const STORY_STEPS = [
+  {
+    title: "Upload your material",
+    body: "Drop in a PDF of up to 20 pages. LearnMate reads it, finds the topics and builds exercises.",
+  },
+  {
+    title: "Watch it come alive",
+    body: "Each topic becomes an animated lesson: code types in, variables tick, every scene shows its source page.",
+  },
+  {
+    title: "Try it yourself",
+    body: "At every “Your turn” checkpoint an IDE slides in. Run your code, Check it against hidden tests, and let Guru ask the right question.",
+  },
+  {
+    title: "Watch your plan change",
+    body: "Mastery updates, weak topics reorder, and your revision plan moves from v1 to v2.",
+  },
+] as const;

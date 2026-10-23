@@ -7,6 +7,7 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type ReactNode,
 } from "react";
 import { useMotionValue, useMotionValueEvent, useScroll } from "framer-motion";
 import { DeviceFrame } from "@/components/design/device-frame";
@@ -15,13 +16,14 @@ import { LearningProgressStepper } from "@/components/design/learning-progress-s
 import { Swap } from "@/components/design/swap";
 import { StoryScene } from "@/components/design/story-scenes";
 import { SubjectSwitcher } from "@/components/design/subject-switcher";
-import { SUBJECT_STAGES, STORY_STAGES } from "@/components/design/story-stages";
+import { STORY_STAGES, STORY_STEPS, SUBJECT_STAGES } from "@/components/design/story-stages";
+import { cn } from "@/lib/utils";
 import type { Subject } from "@/components/design/teaching-data";
 
 const COUNT = STORY_STAGES.length;
 const MemoScene = memo(StoryScene);
-/** Pixels of scroll the sticky panel is pinned below the 56px site header. */
-const HEADER = 56;
+/** Pixels of scroll the sticky panel is pinned below the 64px site header. */
+const HEADER = 64;
 /** Boundary slack, in stage units, so hovering on a boundary never flickers between stages. */
 const HYSTERESIS = 0.04;
 /** Scene progress is quantised so React re-renders ~120 times per stage, not once per scroll event. */
@@ -38,7 +40,7 @@ interface View {
   p: number;
 }
 
-export function ScrollShowcase({ href }: { href: string }) {
+export function ScrollShowcase({ href, header }: { href: string; header?: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   const reduced = useSyncExternalStore(
     subscribeReduced,
@@ -104,17 +106,64 @@ export function ScrollShowcase({ href }: { href: string }) {
             />
           ))}
         </div>
-        <div className="relative mx-auto flex h-full max-w-7xl flex-col gap-2 px-4 py-2 sm:px-6 sm:gap-3 sm:py-4 lg:gap-4 lg:py-6">
-          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] items-center gap-2 sm:gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:gap-12">
+        <div className="relative flex h-full flex-col justify-center gap-2 py-2 sm:gap-3 sm:py-3 lg:gap-5 lg:py-3">
+          {header}
+          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] items-center gap-2 lg:flex-none lg:items-center sm:gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:gap-12">
             <div className="min-w-0">
-              <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] text-muted-foreground uppercase sm:text-xs">
+              <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase sm:text-xs lg:hidden">
                 <span className="brand-fill h-1.5 w-6 rounded-full" aria-hidden="true" />
-                How it works · {stage + 1} / {COUNT}
+                Step {current.step + 1} of 4 · {STORY_STEPS[current.step].title}
               </p>
-              <h2
-                id="how-heading"
+              <ol
+                className="relative m-0 hidden list-none flex-col gap-3 p-0 lg:flex"
+                aria-label="The four steps"
+              >
+                {STORY_STEPS.map((st, i) => {
+                  const on = current.step === i;
+                  const first = STORY_STAGES.findIndex((g) => g.step === i);
+                  return (
+                    <li key={st.title}>
+                      <button
+                        type="button"
+                        onClick={() => select(first)}
+                        aria-current={on ? "step" : undefined}
+                        className="group flex w-full items-start gap-4 rounded-xl py-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
+                      >
+                        <span
+                          className={cn(
+                            "flex size-10 shrink-0 items-center justify-center rounded-full border text-base font-semibold transition-colors duration-300",
+                            on ? "border-ink bg-ink text-bg" : "bg-surface text-lm-muted",
+                          )}
+                        >
+                          {i + 1}
+                        </span>
+                        <span className="min-w-0">
+                          <span
+                            className={cn(
+                              "block pt-1.5 text-xl font-semibold tracking-[-0.01em] transition-colors duration-300",
+                              on ? "text-ink" : "text-lm-muted group-hover:text-ink",
+                            )}
+                          >
+                            {st.title}
+                          </span>
+                          <span
+                            className="moment-panel story-tracker-body block"
+                            data-open={on}
+                            aria-hidden={!on}
+                          >
+                            <span className="min-h-0 overflow-hidden pt-1 text-base leading-7 text-ink-2">
+                              {st.body}
+                            </span>
+                          </span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+              <h3
                 aria-live="polite"
-                className="mt-1.5 min-h-[2.2em] text-[1.65rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:mt-3 sm:text-4xl md:min-h-[1.15em] lg:min-h-[2.2em] lg:text-5xl"
+                className="mt-1.5 min-h-[2.2em] text-[1.65rem] leading-[1.1] font-semibold tracking-[-0.03em] text-balance sm:mt-3 sm:text-4xl md:min-h-[1.15em] lg:mt-6 lg:min-h-[1.1em] lg:text-[2.5rem]"
               >
                 <Swap
                   value={stage}
@@ -127,8 +176,8 @@ export function ScrollShowcase({ href }: { href: string }) {
                     />
                   )}
                 />
-              </h2>
-              <div className="mt-2 sm:mt-4 sm:min-h-[4.5rem] lg:min-h-[6.5rem]">
+              </h3>
+              <div className="mt-2 sm:mt-4 sm:min-h-[4.5rem] lg:min-h-[5.5rem]">
                 <Swap
                   value={stage}
                   render={(v) => (
@@ -161,7 +210,7 @@ export function ScrollShowcase({ href }: { href: string }) {
                     </span>
                   </>
                 }
-                className="h-full min-h-[18rem] sm:max-h-[34rem] lg:h-[30rem] lg:max-h-[calc(100svh-15rem)]"
+                className="h-full min-h-[18rem] sm:max-h-[34rem] lg:h-[clamp(22rem,calc(100svh-20rem),32rem)]"
               >
                 <Swap
                   value={stage}
@@ -173,6 +222,7 @@ export function ScrollShowcase({ href }: { href: string }) {
                       p={phase === "out" ? (dir > 0 ? 1 : 0) : p}
                       href={href}
                       subject={v === stage ? subject : "python"}
+                      onAdvance={() => select(5)}
                     />
                   )}
                 />

@@ -125,6 +125,15 @@ const PAGES = [
     topic: "Off-by-one errors",
     terms: ["off-by-one", "first and last value"],
   },
+  {
+    n: 7,
+    title: "Accumulating a total",
+    text: "A common pattern is to start a variable at zero and add to it each time around the loop.",
+    mark: "start a variable at zero",
+    code: "total = 0",
+    topic: "Accumulators",
+    terms: ["accumulator", "total"],
+  },
 ] as const;
 
 function ReadScene({ p }: { p: number }) {
@@ -325,6 +334,70 @@ function QuizScene({ p }: { p: number }) {
   );
 }
 
+/* ---------- Plan ---------- */
+
+const PLAN = [
+  { name: "For loops", score: 83, level: "strong", action: "Quick review" },
+  { name: "Loops", score: 33, level: "weak", action: "Lesson + exercise" },
+  { name: "Off-by-one errors", score: 40, level: "weak", action: "Lesson + exercise" },
+  { name: "Accumulators", score: 67, level: "okay", action: "Practice" },
+] as const;
+const PLAN_ORDER = [3, 0, 1, 2];
+const ROW = 56;
+
+function PlanScene({ p }: { p: number }) {
+  const sort = ease(seg(p, 0.3, 0.66));
+  const flag = seg(p, 0.12, 0.3);
+  const cta = seg(p, 0.78, 0.9);
+  return (
+    <Shell>
+      <Heading title="Revision plan" aside={<Chip tone="brand">v1</Chip>} />
+      <p className="text-[11px] text-muted-foreground">
+        Ordered by mastery, weakest first · sample scores
+      </p>
+      <div className="relative min-h-0 flex-1" style={{ minHeight: ROW * PLAN.length }}>
+        {PLAN.map((t, i) => {
+          const y = lerp(i, PLAN_ORDER[i], sort) * ROW;
+          const weak = t.level === "weak";
+          return (
+            <div
+              key={t.name}
+              className="absolute inset-x-0 flex items-center gap-2.5 rounded-xl border bg-card px-3 shadow-xs"
+              style={{
+                height: ROW - 8,
+                transform: `translateY(${y}px)`,
+                borderColor: weak
+                  ? `color-mix(in srgb, var(--warning) ${flag * 55}%, var(--border))`
+                  : undefined,
+              }}
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-xs font-semibold">
+                {PLAN_ORDER[i] + 1}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-semibold @md:text-sm @xl:text-base">{t.name}</p>
+                <p className="truncate text-[10px] text-muted-foreground">{t.action}</p>
+              </div>
+              {weak && sort > 0.7 && (
+                <Chip tone="warn" className="hidden @sm:inline-flex">
+                  Priority
+                </Chip>
+              )}
+              <Chip tone={t.level === "strong" ? "good" : weak ? "warn" : "muted"}>{t.score}%</Chip>
+            </div>
+          );
+        })}
+      </div>
+      <div
+        className="brand-fill flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl text-sm font-medium text-white shadow-lg @xl:h-12"
+        style={{ opacity: lerp(0.35, 1, cta), transform: `scale(${lerp(0.97, 1, cta)})` }}
+      >
+        Start learning: Loops <ArrowRight className="h-4 w-4" aria-hidden="true" />
+      </div>
+    </Shell>
+  );
+}
+
 /* ---------- 5 & 6. Code + Guru share one editor ---------- */
 
 const BUG = "total = 0\nfor i in range(1, 5):\n    total = total + i\nprint(total)";
@@ -487,9 +560,14 @@ function GuruScene({ p }: { p: number }) {
         >
           It stops at 4. So I need range(1, 6)?
         </p>
-        <p className="mt-auto text-[10px] text-muted-foreground">
-          Sample conversation, not a live chat.
-        </p>
+        <div className="mt-auto flex flex-wrap items-center gap-1.5">
+          <span style={{ opacity: seg(p, 0.5, 0.6) }}>
+            <Chip tone="brand">Cites page 6</Chip>
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            Sample conversation, not a live chat.
+          </span>
+        </div>
       </aside>
     </Shell>
   );
@@ -580,24 +658,28 @@ export function StoryScene({
   p,
   href,
   subject = "python",
+  onAdvance,
 }: {
   stage: number;
   p: number;
   href: string;
   subject?: Subject;
+  /** Called when the visitor picks "See Loops run" on the concept map. */
+  onAdvance?: () => void;
 }) {
   const style: CSSProperties = { contain: "layout paint" };
   return (
     <div className="h-full" style={style}>
       {stage === 0 && <UploadScene p={p} />}
       {stage === 1 && <ReadScene p={p} />}
-      {stage === 2 && <MapScene p={p} subject={subject} />}
+      {stage === 2 && <MapScene p={p} subject={subject} onAdvance={onAdvance} />}
       {stage === 3 && <QuizScene p={p} />}
-      {stage === 4 && <LoopScene p={p} subject={subject} />}
-      {stage === 5 && <WebScene p={p} />}
-      {stage === 6 && <CodeScene p={p} />}
-      {stage === 7 && <GuruScene p={p} />}
-      {stage === 8 && <MasteryScene p={p} href={href} />}
+      {stage === 4 && <PlanScene p={p} />}
+      {stage === 5 && <LoopScene p={p} subject={subject} />}
+      {stage === 6 && <WebScene p={p} />}
+      {stage === 7 && <CodeScene p={p} />}
+      {stage === 8 && <GuruScene p={p} />}
+      {stage === 9 && <MasteryScene p={p} href={href} />}
     </div>
   );
 }

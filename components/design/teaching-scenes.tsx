@@ -318,7 +318,15 @@ function MapChips({
   );
 }
 
-function MapBody({ p, subject }: { p: number; subject: Subject }) {
+function MapBody({
+  p,
+  subject,
+  onAdvance,
+}: {
+  p: number;
+  subject: Subject;
+  onAdvance?: () => void;
+}) {
   const map = MIND_MAPS[subject];
   const [picked, setPicked] = useState<string | null>(null);
   // Until the visitor picks something, the demo selects the focus concept on its own.
@@ -352,20 +360,33 @@ function MapBody({ p, subject }: { p: number; subject: Subject }) {
           )}
         </span>
         {info?.label === map.focus.label && (
-          <Chip tone="brand" className="hidden @md:inline-flex">
+          <button
+            type="button"
+            onClick={onAdvance}
+            disabled={!onAdvance}
+            className="inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium text-white brand-fill focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground disabled:cursor-default"
+          >
             {map.next} <ArrowRight className="h-3 w-3" aria-hidden="true" />
-          </Chip>
+          </button>
         )}
       </div>
     </>
   );
 }
 
-export function MapScene({ p, subject }: { p: number; subject: Subject }) {
+export function MapScene({
+  p,
+  subject,
+  onAdvance,
+}: {
+  p: number;
+  subject: Subject;
+  onAdvance?: () => void;
+}) {
   return (
     <Shell>
       <Heading title="Concept map" aside={<Chip>Illustrative · click a concept</Chip>} />
-      <MapBody key={subject} p={p} subject={subject} />
+      <MapBody key={subject} p={p} subject={subject} onAdvance={onAdvance} />
     </Shell>
   );
 }
