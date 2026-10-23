@@ -49,3 +49,10 @@ export function serverEnv(): ServerEnv {
   });
   return cachedServer;
 }
+
+/** Just the service-role key, so scripts and tests don't need every AI provider key configured. */
+export function serviceRoleKey(): string {
+  return parse(serverSchema.pick({ SUPABASE_SERVICE_ROLE_KEY: true }), {
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  }).SUPABASE_SERVICE_ROLE_KEY;
+}

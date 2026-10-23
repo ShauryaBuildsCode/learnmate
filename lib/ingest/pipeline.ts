@@ -122,7 +122,7 @@ export async function ingestMaterial({
     .from("courses")
     .insert({
       user_id: userId,
-      title: map.title,
+      title: source.kind === "text" && source.title ? source.title : map.title,
       subject: map.subject,
       source_type: source.kind,
       storage_path: source.kind === "pdf" ? source.storagePath : null,

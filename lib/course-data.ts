@@ -29,15 +29,38 @@ export interface CourseSnapshot {
 }
 
 /** Gathers everything mastery depends on for one course, through the signed-in user's RLS-bound client. */
-export async function loadCourseSnapshot(supabase: Supabase, courseId: string): Promise<CourseSnapshot> {
+export async function loadCourseSnapshot(
+  supabase: Supabase,
+  courseId: string,
+): Promise<CourseSnapshot> {
   const [{ data: topicRows }, { data: exerciseRows }, { data: attemptRows }] = await Promise.all([
-    supabase.from("topics").select("id,name,summary,pages,position").eq("course_id", courseId).order("position"),
+    supabase
+      .from("topics")
+      .select("id,name,summary,pages,position")
+      .eq("course_id", courseId)
+      .order("position"),
     supabase.from("exercises").select("id,topic_id,prompt,page").eq("course_id", courseId),
-    supabase.from("quiz_attempts").select("*").eq("course_id", courseId).order("created_at", { ascending: false }),
+    supabase
+      .from("quiz_attempts")
+      .select("*")
+      .eq("course_id", courseId)
+      .order("created_at", { ascending: false }),
   ]);
-  const exercises = (exerciseRows ?? []).map((e) => ({ id: e.id, topicId: e.topic_id, prompt: e.prompt, page: e.page }));
+  const exercises = (exerciseRows ?? []).map((e) => ({
+    id: e.id,
+    topicId: e.topic_id,
+    prompt: e.prompt,
+    page: e.page,
+  }));
   const { data: runs } = exercises.length
-    ? await supabase.from("exercise_runs").select("exercise_id").in("exercise_id", exercises.map((e) => e.id)).eq("passed", true)
+    ? await supabase
+        .from("exercise_runs")
+        .select("exercise_id")
+        .in(
+          "exercise_id",
+          exercises.map((e) => e.id),
+        )
+        .eq("passed", true)
     : { data: [] };
   const passedExerciseIds = new Set((runs ?? []).map((r) => r.exercise_id));
 

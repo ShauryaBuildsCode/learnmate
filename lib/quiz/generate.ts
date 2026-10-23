@@ -13,7 +13,13 @@ export interface QuizTopic {
 const MAX_ROUNDS = 3;
 
 function words(text: string): Set<string> {
-  return new Set(text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter((w) => w.length > 2));
+  return new Set(
+    text
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  );
 }
 
 /** True when two questions share at least 70% of their words (a repeat or a light rephrase). */
@@ -33,11 +39,19 @@ export function shuffleOptions(q: QuizQuestion, random: () => number = Math.rand
     const j = Math.floor(random() * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
-  return { ...q, options: order.map((i) => q.options[i]), correctIndex: order.indexOf(q.correctIndex) };
+  return {
+    ...q,
+    options: order.map((i) => q.options[i]),
+    correctIndex: order.indexOf(q.correctIndex),
+  };
 }
 
 /** A question is kept only if its topic and page exist and its supporting quote is really on that page. */
-export function isGrounded(q: QuizQuestion, topics: QuizTopic[], pages: ReadonlyMap<number, string>): boolean {
+export function isGrounded(
+  q: QuizQuestion,
+  topics: QuizTopic[],
+  pages: ReadonlyMap<number, string>,
+): boolean {
   const topic = topics.find((t) => t.id === q.topicId);
   const pageText = pages.get(q.page);
   return !!topic && !!pageText && verifyQuote(pageText, q.quote);
@@ -64,11 +78,20 @@ export async function generateVerifiedQuestions(args: Args): Promise<QuizQuestio
   for (let round = 0; round < MAX_ROUNDS && accepted.length < args.count; round++) {
     const missingTopics = args.topics.filter((t) => !accepted.some((q) => q.topicId === t.id));
     const needed = args.count - accepted.length;
-    const focus = missingTopics.length > 0 && missingTopics.length < args.topics.length ? missingTopics : args.topics;
+    const focus =
+      missingTopics.length > 0 && missingTopics.length < args.topics.length
+        ? missingTopics
+        : args.topics;
     const result = await geminiJson({
       task: "quiz",
       system: CONTENT_SYSTEM,
-      prompt: quizPrompt({ pages: args.pages, topics: focus, count: needed, avoid, uiLang: args.uiLang }),
+      prompt: quizPrompt({
+        pages: args.pages,
+        topics: focus,
+        count: needed,
+        avoid,
+        uiLang: args.uiLang,
+      }),
       schema: quizSchema,
     });
     for (const q of result.questions) {

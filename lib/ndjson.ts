@@ -1,5 +1,8 @@
 /** Reads a newline-delimited JSON response body, calling `onLine` with each parsed object as it arrives. */
-export async function readNdjson(response: Response, onLine: (value: unknown) => void): Promise<void> {
+export async function readNdjson(
+  response: Response,
+  onLine: (value: unknown) => void,
+): Promise<void> {
   if (!response.body) return;
   const reader = response.body.getReader();
   const decoder = new TextDecoder();

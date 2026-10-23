@@ -82,7 +82,9 @@ export function quizPrompt(args: {
   avoid: string[];
   uiLang: "en" | "hi";
 }): string {
-  const list = args.topics.map((t) => `- topicId "${t.id}": ${t.name} (pages ${t.pages.join(", ")})`).join("\n");
+  const list = args.topics
+    .map((t) => `- topicId "${t.id}": ${t.name} (pages ${t.pages.join(", ")})`)
+    .join("\n");
   const avoid = args.avoid.length
     ? `\nDo NOT repeat or rephrase any of these earlier questions:\n${args.avoid.map((q) => `- ${q}`).join("\n")}`
     : "";
@@ -119,7 +121,9 @@ export function planPrompt(args: {
     .map(
       (t, i) =>
         `${i + 1}. topicId "${t.topicId}" - ${t.name} (${t.level}, mastery ${Math.round(t.score * 100)}%). Pages: ${t.pages.join(", ")}. Exercises: ${
-          t.exercises.length ? t.exercises.map((e) => `${e.passed ? "[done]" : "[todo]"} ${e.prompt}`).join(" | ") : "none"
+          t.exercises.length
+            ? t.exercises.map((e) => `${e.passed ? "[done]" : "[todo]"} ${e.prompt}`).join(" | ")
+            : "none"
         }`,
     )
     .join("\n");

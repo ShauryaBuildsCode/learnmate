@@ -2,8 +2,18 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { geminiJson, geminiText } from "@/lib/ai/gemini";
 import { changeSummaryPrompt, CONTENT_SYSTEM, planPrompt } from "@/lib/ai/prompts/content";
 import { loadCourseSnapshot, type CourseSnapshot } from "@/lib/course-data";
-import { diffMastery, fallbackChangeSummary, orderWeakestFirst, type TopicMastery } from "@/lib/mastery";
-import { masteryRecordSchema, planItemSchema, planItemsSchema, type PlanItem } from "@/lib/schemas/content";
+import {
+  diffMastery,
+  fallbackChangeSummary,
+  orderWeakestFirst,
+  type TopicMastery,
+} from "@/lib/mastery";
+import {
+  masteryRecordSchema,
+  planItemSchema,
+  planItemsSchema,
+  type PlanItem,
+} from "@/lib/schemas/content";
 import type { Database, Json } from "@/lib/supabase/types";
 
 type Supabase = SupabaseClient<Database>;
@@ -36,7 +46,11 @@ export function parsePlanRow(row: Database["public"]["Tables"]["plans"]["Row"]):
 }
 
 /** Code decides the order and every number; Gemini only writes the sentences, which code then validates. */
-async function writeItems(snapshot: CourseSnapshot, ordered: TopicMastery[], uiLang: "en" | "hi"): Promise<PlanItem[]> {
+async function writeItems(
+  snapshot: CourseSnapshot,
+  ordered: TopicMastery[],
+  uiLang: "en" | "hi",
+): Promise<PlanItem[]> {
   const byId = new Map(snapshot.topics.map((t) => [t.id, t]));
   const base = ordered.map((m) => {
     const t = byId.get(m.topicId)!;
@@ -85,7 +99,10 @@ async function writeItems(snapshot: CourseSnapshot, ordered: TopicMastery[], uiL
       why: w?.why ?? `${t.name} is ${m.level} right now (${Math.round(m.score * 100)}%).`,
       pagesToReread: pages.length ? pages : t.pages.slice(0, 2),
       nextStep:
-        w?.nextStep ?? (todo ? `Watch the ${t.name} lesson, then do: ${todo.prompt}` : `Watch the ${t.name} lesson and re-read the pages.`),
+        w?.nextStep ??
+        (todo
+          ? `Watch the ${t.name} lesson, then do: ${todo.prompt}`
+          : `Watch the ${t.name} lesson and re-read the pages.`),
       exercises: exercises.map((e) => ({ id: e.id, passed: e.passed })),
     };
   });
@@ -104,7 +121,12 @@ async function writeChangeSummary(
         nextFocus: diff.nextFocus ? names[diff.nextFocus] : null,
         changes: diff.changes
           .filter((c) => c.direction !== "same")
-          .map((c) => ({ topic: names[c.topicId], from: c.from, to: c.to, direction: c.direction })),
+          .map((c) => ({
+            topic: names[c.topicId],
+            from: c.from,
+            to: c.to,
+            direction: c.direction,
+          })),
       }),
     );
     if (text) return text.replace(/\s+/g, " ");
@@ -124,7 +146,9 @@ export interface BuildPlanArgs {
 }
 
 /** Creates the next plan version when mastery meaningfully changed; otherwise returns the current one. */
-export async function buildPlan(args: BuildPlanArgs): Promise<{ plan: StoredPlan; created: boolean }> {
+export async function buildPlan(
+  args: BuildPlanArgs,
+): Promise<{ plan: StoredPlan; created: boolean }> {
   const snapshot = await loadCourseSnapshot(args.supabase, args.courseId);
   if (snapshot.attempts.length === 0) throw new NoQuizYetError();
 
@@ -137,7 +161,11 @@ export async function buildPlan(args: BuildPlanArgs): Promise<{ plan: StoredPlan
     .maybeSingle();
   const latest = latestRow ? parsePlanRow(latestRow) : null;
 
-  const diff = diffMastery(latest ? Object.values(latest.mastery) : null, snapshot.mastery, snapshot.topics);
+  const diff = diffMastery(
+    latest ? Object.values(latest.mastery) : null,
+    snapshot.mastery,
+    snapshot.topics,
+  );
   if (latest && !diff.meaningful) return { plan: latest, created: false };
 
   const ordered = orderWeakestFirst(snapshot.mastery, snapshot.topics);

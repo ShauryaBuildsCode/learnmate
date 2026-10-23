@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LangToggle } from "./lang-toggle";
 import { SignOutButton } from "./sign-out-button";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -10,6 +11,7 @@ export function SiteHeader({ children }: { children?: React.ReactNode }) {
       </Link>
       <div className="ml-auto flex items-center gap-2">
         {children}
+        <LangToggle />
         <ThemeToggle />
         <SignOutButton />
       </div>

@@ -16,7 +16,10 @@ export async function streamGuru(
   });
   if (!response.ok || !response.body) {
     const data = (await response.json().catch(() => ({}))) as { error?: string };
-    onFrame({ t: "error", message: data.error ?? "Guru couldn't answer just now. Please try again." });
+    onFrame({
+      t: "error",
+      message: data.error ?? "Guru couldn't answer just now. Please try again.",
+    });
     return;
   }
   await readNdjson(response, (line) => {

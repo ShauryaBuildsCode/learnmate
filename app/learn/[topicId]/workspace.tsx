@@ -11,6 +11,7 @@ import { GuruPanel } from "@/components/tutor/guru-panel";
 import { Button } from "@/components/ui/button";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { LangToggle } from "@/components/ui/lang-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LANGUAGE_LABELS } from "@/lib/ide-templates";
 import type { Diagnostic } from "@/lib/schemas/diagnostic";
@@ -183,6 +184,7 @@ export function LearnWorkspace({
               )}
               {ideOpen ? "Hide editor" : "Open editor"}
             </Button>
+            <LangToggle />
             <ThemeToggle />
           </div>
         </header>
