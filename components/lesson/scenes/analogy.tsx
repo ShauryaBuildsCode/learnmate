@@ -1,124 +1,98 @@
-import {
-  ArrowRight,
-  Building2,
-  Clock,
-  Key,
-  List,
-  Map,
-  Music,
-  Package,
-  Repeat,
-  ShoppingCart,
-  Ticket,
-} from "lucide-react";
-import { interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
+import { ArrowRight, Check } from "lucide-react";
+import { interpolate, useCurrentFrame } from "remotion";
 import type { Scene } from "@/lib/schemas/lesson";
-import { PALETTE, SceneFrame } from "./common";
+import { SceneFrame } from "./common";
+import { Card, IconTile, lerp, PALETTE, useEnter } from "./kit";
 
 type Props = { scene: Extract<Scene, { type: "Analogy" }> };
 
-const ICONS = {
-  repeat: Repeat,
-  package: Package,
-  list: List,
-  key: Key,
-  map: Map,
-  clock: Clock,
-  ticket: Ticket,
-  building: Building2,
-  music: Music,
-  "shopping-cart": ShoppingCart,
-} as const;
-
+/** A real-life comparison: the icon tile spins in, the two sides meet, then the points drop in. */
 export function Analogy({ scene }: Props) {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  const Icon = ICONS[scene.icon];
-  const pop = spring({ frame: frame - 4, fps, config: { damping: 12 } });
-  const arrow = interpolate(frame, [22, 40], [0, 1], {
+  const icon = useEnter(2, { damping: 10, stiffness: 110 });
+  const left = useEnter(14);
+  const right = useEnter(26);
+  const arrow = interpolate(frame, [22, 38], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
   return (
-    <SceneFrame label="Think of it like this" page={scene.page} narration={scene.narration}>
+    <SceneFrame label="Think of it like this" page={scene.page} narration={scene.narration} ambient>
       <div style={{ display: "flex", gap: 56, alignItems: "center", height: "100%" }}>
-        <div
-          style={{
-            width: 240,
-            height: 240,
-            borderRadius: "50%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: `radial-gradient(circle, ${PALETTE.accent}55, transparent 70%)`,
-            border: `3px solid ${PALETTE.accent}`,
-            transform: `scale(${pop}) rotate(${(1 - pop) * -25}deg)`,
-          }}
-        >
-          <Icon size={120} color={PALETTE.text} strokeWidth={1.6} />
+        <div style={{ transform: `scale(${icon}) rotate(${lerp(-40, 0, icon)}deg)` }}>
+          <IconTile icon={scene.icon} tone="orange" size={230} />
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 34 }}>
-            <div
+          <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 30 }}>
+            <Card
               style={{
-                padding: "14px 24px",
-                borderRadius: 14,
-                background: PALETTE.card,
-                border: `1px solid ${PALETTE.cardBorder}`,
-                fontSize: 32,
-                color: PALETTE.accent,
+                padding: "16px 28px",
+                fontSize: 36,
+                fontWeight: 800,
+                opacity: left,
+                transform: `translateX(${lerp(-60, 0, left)}px)`,
               }}
             >
               {scene.concept}
-            </div>
+            </Card>
             <ArrowRight
-              size={40}
-              color={PALETTE.accent2}
-              style={{ opacity: arrow, transform: `translateX(${(1 - arrow) * -14}px)` }}
+              size={44}
+              color={PALETTE.orange}
+              strokeWidth={3}
+              style={{ opacity: arrow, transform: `translateX(${lerp(-16, 0, arrow)}px)` }}
             />
-            <div
+            <Card
+              tone="black"
               style={{
-                padding: "14px 24px",
-                borderRadius: 14,
-                background: "rgba(52,211,153,0.15)",
-                border: `1px solid ${PALETTE.accent2}`,
-                fontSize: 32,
-                opacity: arrow,
+                padding: "16px 28px",
+                fontSize: 36,
+                fontWeight: 800,
+                opacity: right,
+                transform: `translateX(${lerp(60, 0, right)}px)`,
               }}
             >
               {scene.realLife}
-            </div>
+            </Card>
           </div>
-          {scene.bullets.map((b, i) => {
-            const s = spring({ frame: frame - (44 + i * 16), fps, config: { damping: 14 } });
-            return (
-              <div
-                key={i}
-                style={{
-                  display: "flex",
-                  gap: 14,
-                  alignItems: "center",
-                  fontSize: 30,
-                  marginBottom: 16,
-                  opacity: s,
-                  transform: `translateX(${(1 - s) * 40}px)`,
-                }}
-              >
-                <span
-                  style={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: 6,
-                    background: PALETTE.warn,
-                    flexShrink: 0,
-                  }}
-                />
-                {b}
-              </div>
-            );
-          })}
+          {scene.bullets.map((b, i) => (
+            <Bullet key={i} text={b} delay={46 + i * 14} />
+          ))}
         </div>
       </div>
     </SceneFrame>
+  );
+}
+
+function Bullet({ text, delay }: { text: string; delay: number }) {
+  const p = useEnter(delay);
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: 16,
+        alignItems: "center",
+        fontSize: 31,
+        fontWeight: 600,
+        marginBottom: 16,
+        opacity: p,
+        transform: `translateX(${lerp(50, 0, p)}px)`,
+      }}
+    >
+      <span
+        style={{
+          width: 38,
+          height: 38,
+          borderRadius: 12,
+          background: PALETTE.orange,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+        }}
+      >
+        <Check size={22} color="#fff" strokeWidth={3.5} />
+      </span>
+      {text}
+    </div>
   );
 }

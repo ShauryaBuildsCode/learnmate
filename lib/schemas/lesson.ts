@@ -11,7 +11,17 @@ export const ANALOGY_ICONS = [
   "building",
   "music",
   "shopping-cart",
+  "code",
+  "bug",
+  "rocket",
+  "lightbulb",
+  "puzzle",
+  "layers",
+  "target",
+  "zap",
+  "book",
 ] as const;
+const iconSchema = z.enum(ANALOGY_ICONS);
 
 const base = {
   narration: z.string().min(10).max(600),
@@ -65,10 +75,51 @@ export const sceneSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("Analogy"),
     ...base,
-    icon: z.enum(ANALOGY_ICONS),
+    icon: iconSchema,
     concept: z.string().max(60),
     realLife: z.string().max(80),
     bullets: z.array(z.string().max(100)).min(2).max(4),
+  }),
+  z.object({
+    type: z.literal("KeyTerms"),
+    ...base,
+    /** Words the topic is built from; icon tiles fly in and become kinetic typography. */
+    terms: z.array(z.object({ label: z.string().max(18), icon: iconSchema })).min(3).max(8),
+  }),
+  z.object({
+    type: z.literal("Bento"),
+    ...base,
+    /** An overview of the topic's parts as cards that assemble into a bento grid. */
+    cards: z
+      .array(
+        z.object({
+          title: z.string().max(28),
+          body: z.string().max(90).optional(),
+          stat: z.object({ value: z.number(), prefix: z.string().max(3).optional(), suffix: z.string().max(4).optional() }).optional(),
+          tone: z.enum(["light", "dark", "accent"]),
+          icon: iconSchema,
+        }),
+      )
+      .min(3)
+      .max(5),
+  }),
+  z.object({
+    type: z.literal("ArrayViz"),
+    ...base,
+    /** A list/array as stacking blocks. iterate: a pointer walks it. index: one slot is picked out. append: a block drops on the end. */
+    name: z.string().max(20),
+    items: z.array(z.string().max(8)).min(2).max(8),
+    mode: z.enum(["iterate", "index", "append"]),
+    focusIndex: z.number().int().min(-8).max(7).optional(),
+    appendValue: z.string().max(8).optional(),
+  }),
+  z.object({
+    type: z.literal("RepeatBurst"),
+    ...base,
+    /** "Write it once, run it N times": a mosaic of tiles zooms out as a counter climbs. */
+    label: z.string().max(60),
+    count: z.number().int().min(10).max(1000),
+    icon: iconSchema,
   }),
   z.object({
     type: z.literal("Checkpoint"),
@@ -82,6 +133,6 @@ export type SceneType = Scene["type"];
 
 export const lessonScriptSchema = z.object({
   title: z.string().max(100),
-  scenes: z.array(sceneSchema).min(3).max(12),
+  scenes: z.array(sceneSchema).min(3).max(16),
 });
 export type LessonScript = z.infer<typeof lessonScriptSchema>;
