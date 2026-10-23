@@ -1,8 +1,11 @@
-import { geminiJson } from "@/lib/ai/gemini";
-import { CONTENT_SYSTEM, pagesBlock, quizPrompt } from "@/lib/ai/prompts/content";
+import { claudeJson } from "@/lib/ai/anthropic";
+import { groqJson } from "@/lib/ai/groq";
+import { pagesBlock, quizPrompt } from "@/lib/ai/prompts/content";
+import { QUIZ_SYSTEM } from "@/lib/ai/prompts/quiz";
 import { AiOutputError } from "@/lib/ai/types";
+import { serverEnv } from "@/lib/env";
 import { verifyQuote } from "@/lib/grounding";
-import { quizSchema, type QuizQuestion } from "@/lib/schemas/content";
+import { quizQuestionSchema, type QuizQuestion } from "@/lib/schemas/content";
 
 export interface QuizTopic {
   id: string;
@@ -57,6 +60,61 @@ export function isGrounded(
   return !!topic && !!pageText && verifyQuote(pageText, q.quote);
 }
 
+/**
+ * Claude (main model, then its second-choice model) writes the questions; Groq is the last resort. Questions are
+ * validated one by one so a single malformed question never costs the whole batch.
+ */
+async function writeQuestions(input: {
+  context: string;
+  prompt: string;
+}): Promise<{ questions: QuizQuestion[]; provider: "claude" | "groq" }> {
+  const env = serverEnv();
+  const order: { provider: "claude" | "groq"; model?: string }[] = [
+    { provider: "claude", model: env.ANTHROPIC_MODEL },
+    { provider: "claude", model: env.ANTHROPIC_FALLBACK_MODEL },
+    { provider: "groq" },
+  ];
+  let lastError: unknown;
+  for (const { provider, model } of order) {
+    try {
+      const raw =
+        provider === "claude"
+          ? await claudeJson({
+              model,
+              persona: QUIZ_SYSTEM,
+              courseBlock: input.context,
+              prompt: input.prompt,
+              effort: "low",
+              maxTokens: 6000,
+              task: "quiz",
+            })
+          : await groqJson({
+              system: `${QUIZ_SYSTEM}\n\n${input.context}`,
+              prompt: input.prompt,
+              maxTokens: 6000,
+              task: "quiz",
+            });
+      const list = (raw as { questions?: unknown } | null)?.questions;
+      if (!Array.isArray(list)) continue;
+      const questions = list.flatMap((q) => {
+        const parsed = quizQuestionSchema.safeParse(q);
+        return parsed.success ? [parsed.data] : [];
+      });
+      if (questions.length > 0) return { questions, provider };
+    } catch (error) {
+      lastError = error;
+      console.error(
+        `[quiz] ${provider} ${model ?? ""} failed:`,
+        error instanceof Error ? error.message : error,
+      );
+    }
+  }
+  throw new AiOutputError(
+    "quiz",
+    lastError instanceof Error ? lastError.message : "no usable questions",
+  );
+}
+
 interface Args {
   topics: QuizTopic[];
   pages: { page_no: number; text: string }[];
@@ -67,7 +125,7 @@ interface Args {
 }
 
 /**
- * Asks Gemini for questions, verifies every quote against its page in code, and regenerates the ones
+ * Asks Claude for questions, verifies every quote against its page in code, and regenerates the ones
  * that fail (up to 3 rounds). Questions that repeat earlier ones are dropped.
  */
 export async function generateVerifiedQuestions(args: Args): Promise<QuizQuestion[]> {
@@ -82,17 +140,9 @@ export async function generateVerifiedQuestions(args: Args): Promise<QuizQuestio
       missingTopics.length > 0 && missingTopics.length < args.topics.length
         ? missingTopics
         : args.topics;
-    const result = await geminiJson({
-      task: "quiz",
-      system: CONTENT_SYSTEM,
+    const result = await writeQuestions({
       context: pagesBlock(args.pages),
-      prompt: quizPrompt({
-        topics: focus,
-        count: needed,
-        avoid,
-        uiLang: args.uiLang,
-      }),
-      schema: quizSchema,
+      prompt: quizPrompt({ topics: focus, count: needed, avoid, uiLang: args.uiLang }),
     });
     for (const q of result.questions) {
       if (accepted.length >= args.count) break;

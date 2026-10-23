@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       attemptId: attempt.id,
       questions: publicQuestions,
-      provider: "gemini",
+      provider: "claude",
     });
   } catch (error) {
     if (error instanceof AiOutputError)

@@ -9,9 +9,9 @@ import type { Provider, TutorEvent } from "./types";
 export const TASK_ROUTES = {
   ingest_structure: "gemini",
   extract_exercises: "gemini",
-  lesson_script: "gemini",
-  quiz_generate: "gemini",
-  practice_generate: "gemini",
+  lesson_script: "claude",
+  quiz_generate: "claude",
+  practice_generate: "claude",
   plan_items: "gemini",
   plan_change_summary: "gemini",
   eval_judge: "gemini",

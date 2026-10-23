@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { computeMastery, type QuizSummary, type TopicMastery, type TopicRef } from "@/lib/mastery";
 import { quizQuestionSchema, type QuizQuestion } from "@/lib/schemas/content";
+import { practiceItemSchema } from "@/lib/schemas/practice";
 import type { Database } from "@/lib/supabase/types";
 import { z } from "zod";
 
@@ -19,7 +20,8 @@ export interface CompletedAttempt {
 
 export interface CourseSnapshot {
   topics: (TopicRef & { summary: string; pages: number[] })[];
-  exercises: { id: string; topicId: string; prompt: string; page: number }[];
+  /** Coding exercises, or interactive practice items for concept courses (the `practice` flag tells them apart). */
+  exercises: { id: string; topicId: string; prompt: string; page: number; practice?: boolean }[];
   passedExerciseIds: Set<string>;
   /** Completed attempts only (an attempt with no answers was generated but never submitted). */
   attempts: CompletedAttempt[];
@@ -33,7 +35,12 @@ export async function loadCourseSnapshot(
   supabase: Supabase,
   courseId: string,
 ): Promise<CourseSnapshot> {
-  const [{ data: topicRows }, { data: exerciseRows }, { data: attemptRows }] = await Promise.all([
+  const [
+    { data: topicRows },
+    { data: exerciseRows },
+    { data: attemptRows },
+    { data: practiceRows },
+  ] = await Promise.all([
     supabase
       .from("topics")
       .select("id,name,summary,pages,position")
@@ -45,24 +52,48 @@ export async function loadCourseSnapshot(
       .select("*")
       .eq("course_id", courseId)
       .order("created_at", { ascending: false }),
+    supabase.from("practice_items").select("id,topic_id,data,page").eq("course_id", courseId),
   ]);
-  const exercises = (exerciseRows ?? []).map((e) => ({
+  const exercises: CourseSnapshot["exercises"] = (exerciseRows ?? []).map((e) => ({
     id: e.id,
     topicId: e.topic_id,
     prompt: e.prompt,
     page: e.page,
   }));
-  const { data: runs } = exercises.length
-    ? await supabase
-        .from("exercise_runs")
-        .select("exercise_id")
-        .in(
-          "exercise_id",
-          exercises.map((e) => e.id),
-        )
-        .eq("passed", true)
-    : { data: [] };
-  const passedExerciseIds = new Set((runs ?? []).map((r) => r.exercise_id));
+  for (const row of practiceRows ?? []) {
+    const item = practiceItemSchema.safeParse(row.data);
+    if (!item.success) continue;
+    const d = item.data;
+    exercises.push({
+      id: row.id,
+      topicId: row.topic_id,
+      prompt: d.kind === "cloze" ? d.text : d.question,
+      page: row.page,
+      practice: true,
+    });
+  }
+  const codeIds = exercises.filter((e) => !e.practice).map((e) => e.id);
+  const practiceIds = exercises.filter((e) => e.practice).map((e) => e.id);
+  const [{ data: runs }, { data: answers }] = await Promise.all([
+    codeIds.length
+      ? supabase
+          .from("exercise_runs")
+          .select("exercise_id")
+          .in("exercise_id", codeIds)
+          .eq("passed", true)
+      : Promise.resolve({ data: [] as { exercise_id: string }[] }),
+    practiceIds.length
+      ? supabase
+          .from("practice_answers")
+          .select("item_id")
+          .in("item_id", practiceIds)
+          .eq("correct", true)
+      : Promise.resolve({ data: [] as { item_id: string }[] }),
+  ]);
+  const passedExerciseIds = new Set([
+    ...(runs ?? []).map((r) => r.exercise_id),
+    ...(answers ?? []).map((r) => r.item_id),
+  ]);
 
   const topics = (topicRows ?? []).map((t) => ({
     id: t.id,

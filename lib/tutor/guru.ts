@@ -4,6 +4,9 @@ import { buildTurn, courseBlock, GURU_PERSONA, type TutorPolicy } from "@/lib/ai
 import { fence } from "@/lib/ai/prompts/fence";
 import type { TutorTurn } from "@/lib/ai/types";
 import { groundAnswer, toPageMap } from "@/lib/grounding";
+import { EDIT_CODE_TOOL, fromToolInput, validateEdits } from "@/lib/ide/edits";
+import { withholdSolution } from "./solution-guard";
+import { describeLearner, loadLearner } from "./learner";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 
@@ -13,12 +16,15 @@ export interface CourseData {
   id: string;
   title: string;
   pages: { page_no: number; text: string }[];
+  kind?: "programming" | "concepts";
+  language?: string | null;
+  learner?: string;
 }
 
 export async function loadCourse(supabase: Supabase, courseId: string): Promise<CourseData | null> {
   const { data: course } = await supabase
     .from("courses")
-    .select("id,title")
+    .select("id,title,kind,language")
     .eq("id", courseId)
     .maybeSingle();
   if (!course) return null;
@@ -27,7 +33,15 @@ export async function loadCourse(supabase: Supabase, courseId: string): Promise<
     .select("page_no,text")
     .eq("course_id", courseId)
     .order("page_no");
-  return { id: course.id, title: course.title, pages: pages ?? [] };
+  const learner = await loadLearner(supabase);
+  return {
+    id: course.id,
+    title: course.title,
+    pages: pages ?? [],
+    kind: course.kind,
+    language: course.language,
+    learner: learner ? describeLearner(learner) : undefined,
+  };
 }
 
 const MAX_HISTORY_TURNS = 8;
@@ -44,6 +58,8 @@ export interface GuruCall {
   effort: "low" | "medium";
   /** Hint rung to report back and persist, if this call was a hint. */
   rung?: number;
+  /** Let Guru propose edits to the student's code (needs code in the context). */
+  allowEdits?: boolean;
 }
 
 function summarize(
@@ -83,13 +99,31 @@ export function guruResponse(call: GuruCall): Response {
         controller.enqueue(encoder.encode(`${JSON.stringify(frame)}\n`));
       let text = "";
       let provider: "claude" | "groq" = "claude";
+      let proposed: unknown[] = [];
+      let editCount = 0;
+      const files = call.context.files;
+      const canEdit = !!call.allowEdits && !!files && Object.keys(files).length > 0;
       try {
         for await (const event of streamTutor({
           persona: GURU_PERSONA,
-          courseBlock: courseBlock(call.course.title, call.course.pages),
+          courseBlock: courseBlock(call.course.title, call.course.pages, {
+            kind: call.course.kind,
+            language: call.course.language,
+            learner: call.course.learner,
+          }),
           turns,
           effort: call.effort,
           maxTokens: 2000,
+          ...(canEdit
+            ? {
+                tools: [EDIT_CODE_TOOL],
+                onToolUses: (uses: { name: string; input: unknown }[]) => {
+                  proposed = uses
+                    .filter((u) => u.name === EDIT_CODE_TOOL.name)
+                    .map((u) => fromToolInput(u.input));
+                },
+              }
+            : {}),
         })) {
           if (event.type === "meta") {
             provider = event.provider === "groq" ? "groq" : "claude";
@@ -99,6 +133,29 @@ export function guruResponse(call: GuruCall): Response {
             text += event.text;
             send({ t: "delta", text: event.text });
           }
+        }
+        // Guru's proposed edits are checked against the real code and the teaching policy before the browser sees them.
+        if (canEdit && files && proposed.length) {
+          const { edits, rejected } = validateEdits(proposed, files, call.policy.revealAllowed);
+          if (rejected.length) console.info("[guru] edits refused:", rejected.join("; "));
+          if (edits.length) {
+            send({ t: "edit", edits });
+            editCount = edits.length;
+          }
+        }
+        // A reply that is only a tool call still needs words, so the student isn't left with an empty bubble.
+        if (!text.trim() && editCount > 0) {
+          text =
+            editCount > 1
+              ? "I've made a few changes to your code. You can undo them in the editor."
+              : "I've made a change to your code. You can undo it in the editor.";
+        }
+        // Backstop for the teaching rule: while the exercise is locked, a finished rewrite of the student's function is withheld.
+        if (!call.policy.revealAllowed && call.context.exercise && files) {
+          const guarded = withholdSolution(text, files);
+          if (guarded.withheld)
+            console.info(`[guru] withheld ${guarded.withheld} solution block(s)`);
+          text = guarded.text;
         }
         const grounded = groundAnswer(text, pageMap);
         send({

@@ -16,6 +16,8 @@ import {
 } from "@/lib/schemas/content";
 import type { Database, Json } from "@/lib/supabase/types";
 
+import { cleanSentence } from "./clean";
+
 type Supabase = SupabaseClient<Database>;
 
 export interface StoredPlan {
@@ -39,7 +41,7 @@ export function parsePlanRow(row: Database["public"]["Tables"]["plans"]["Row"]):
     version: row.version,
     mastery: mastery.data,
     items: items.data,
-    changeSummary: row.change_summary,
+    changeSummary: row.change_summary ? cleanSentence(row.change_summary) : null,
     basedOn: row.based_on,
     createdAt: row.created_at,
   };
@@ -129,7 +131,8 @@ async function writeChangeSummary(
           })),
       }),
     );
-    if (text) return text.replace(/\s+/g, " ");
+    const sentence = cleanSentence(text);
+    if (sentence) return sentence;
   } catch {
     // fall through to the deterministic sentence
   }

@@ -1,5 +1,5 @@
 import { authorize, isResponse, jsonError } from "@/lib/api";
-import { countSolutionRequests } from "@/lib/ai/prompts/tutor";
+import { countSolutionRequests, SECOND_ASK_TASK } from "@/lib/ai/prompts/tutor";
 import { tutorRequestSchema } from "@/lib/schemas/tutor";
 import { guruResponse, loadCourse } from "@/lib/tutor/guru";
 
@@ -26,7 +26,14 @@ export async function POST(request: Request) {
     history,
     question: message,
     context,
-    policy: { revealAllowed: solutionRequests >= 2, solutionRequests, uiLang },
+    policy: {
+      // With no exercise open there is nothing to protect, so coding help is never gated.
+      revealAllowed: solutionRequests >= 1 || !context.exercise,
+      solutionRequests,
+      uiLang,
+      task: solutionRequests >= 1 ? SECOND_ASK_TASK : undefined,
+    },
+    allowEdits: true,
     effort: "medium",
   });
 }

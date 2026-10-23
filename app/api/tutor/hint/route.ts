@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     context,
     effort: "low" as const,
   };
+  const editable = kind === "hint";
 
   if (kind === "nudge") {
     return guruResponse({
@@ -83,5 +84,6 @@ export async function POST(request: Request) {
       task: revealing ? REVEAL_TASK : HINT_RUNGS[rung as 1 | 2 | 3],
     },
     rung,
+    allowEdits: editable,
   });
 }

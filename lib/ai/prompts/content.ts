@@ -1,4 +1,4 @@
-import { INJECTION_RULE, fence } from "./fence";
+import { INJECTION_RULE, defangInstructions, fence } from "./fence";
 
 export const CONTENT_SYSTEM = `You are the content engine of LearnMate, an app that turns study material into lessons, exercises and quizzes for students.
 Rules that apply to everything you write:
@@ -10,7 +10,7 @@ Rules that apply to everything you write:
 export function pagesBlock(pages: { page_no: number; text: string }[]): string {
   return fence(
     "course_material",
-    pages.map((p) => `<page n="${p.page_no}">\n${p.text}\n</page>`).join("\n"),
+    pages.map((p) => `<page n="${p.page_no}">\n${defangInstructions(p.text)}\n</page>`).join("\n"),
   );
 }
 
@@ -18,56 +18,31 @@ export function pagesBlock(pages: { page_no: number; text: string }[]): string {
 export function topicMapPrompt(fallbackTitle: string): string {
   return `Task: structure this material into a topic map.
 - "title": a short course title (use "${fallbackTitle}" if the material has none).
-- "subject": the single subject area (for example "Python programming").
+- "subject": the single subject area (for example "JavaScript programming", "Cell biology", "Indian history").
+- "kind": "programming" if the material teaches how to write code in a language we can run (python, javascript, html, react, c, cpp, java, go or rust), otherwise "concepts". Mathematics, science, history, languages, business, law, medicine, and code in languages not listed (SQL, PHP, Ruby, Swift...) are "concepts".
+- "language": for "programming", the ONE language the material mostly teaches: "javascript" (also TypeScript and Node), "html" (HTML and CSS pages), "react" (React / JSX), or one of the other listed languages. For "concepts", "none".
 - "topics": between 5 and 8 topics, in the order a student should learn them. Each has a short "name", a one-sentence "summary" a beginner can understand, and "pages": the page numbers (from the <page n=...> tags) where the topic is taught. Cover every important part of the material. Worksheets or exercise pages belong to the topic they practise.`;
 }
 
 export function exercisesPrompt(
   topics: { name: string; summary: string; pages: number[] }[],
+  language: string,
 ): string {
   const list = topics.map((t, i) => `${i}: ${t.name} (pages ${t.pages.join(", ")})`).join("\n");
   return `Topics (use the number before the colon as "topicIndex"):
 ${list}
 
-Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches. Make sure EVERY topic ends up with at least one exercise: when the worksheet does not cover a topic, write one small extra practice exercise for it from that topic's pages.
+Task: extract the worksheet exercises from the material and turn each into a runnable coding exercise. This course teaches ${language}: EVERY exercise must be in ${language} (use the file names and test style for it), and its examples, names and style should match the material. If the material has no exercises, write 3 to 5 small practice exercises based only on what it teaches. Make sure EVERY topic ends up with at least one exercise: when the worksheet does not cover a topic, write one small extra practice exercise for it from that topic's pages.
 For each exercise:
-- "language": the programming language the material uses (python, javascript, html, react, c, cpp, java, go or rust).
+- "language": always "${language}".
 - "prompt": the task in plain English, including the exact function name and what it must return.
 - "starterFiles": a map of file name to starter code. Python uses "main.py", JavaScript "main.js", HTML "index.html"/"style.css"/"script.js", React "App.js", C "main.c", C++ "main.cpp", Java "Main.java" (class Main), Go "main.go", Rust "main.rs". The starter must define the function with a TODO and must FAIL the tests as written.
 - "referenceSolution": the same file names with a correct, complete solution that passes every test.
 - "tests": 3 to 5 tests. For python, javascript, html and react use {"kind":"assert","name":"short description","code":"..."} where code is statements that throw when the behaviour is wrong (Python: assert statements calling the student's function; JavaScript/HTML/React: if (...) throw new Error("..."); checks, using the DOM for HTML/React). For c, cpp, java, go and rust use {"kind":"io","name":"...","stdin":"...","expected":"..."} where the program reads stdin and prints stdout.
 - Never use interactive input(): rewrite the task as a function with arguments (Python/JS) or a program that reads stdin (compiled languages).
+- Python and JavaScript functions must RETURN their result (a number, string, list...), never just print it: if the worksheet says to print something, make the function return that text as a string. Every test must compare the returned value with a specific expected value (never \"is None\", \"== None\", or a bare call), so the starter stub fails it.
 - "hints": exactly 3, escalating: 1) a guiding question, 2) the concept and which page covers it, 3) a partial fix that does not give the full solution.
 - "page": the page where the exercise or its concept appears.`;
-}
-
-export function lessonPrompt(args: {
-  topic: { name: string; summary: string; pages: number[] };
-  validPages: number[];
-  exercises: { id: string; prompt: string; language: string }[];
-  allowTrace: boolean;
-  uiLang: "en" | "hi";
-}): string {
-  const ex = args.exercises.length
-    ? args.exercises.map((e) => `- id "${e.id}" (${e.language}): ${e.prompt}`).join("\n")
-    : "(no exercises)";
-  return `Topic: ${args.topic.name}. ${args.topic.summary}
-Valid source pages: ${args.validPages.join(", ")} (the other pages are context only; draw scenes from the valid pages)
-
-Write an animated lesson script for this topic as JSON: {"title": string, "scenes": [...]}. 7 to 10 scenes, using ONLY these scene types. Every scene needs "type", "narration" (1 to 3 spoken sentences), "seconds" (6 to 14) and "page" (one of the valid source pages where the scene's content comes from). The scenes are motion graphics: pick the ones that make THIS topic visual and varied rather than repeating one type.
-- TitleCard: {title, hook}. Always first.
-- KeyTerms: {terms[3-8]: {label (a word or two, at most 18 characters), icon}} the topic's vocabulary, shown as icon tiles that become big bold words. Good as the second scene.
-- Bento: {cards[3-5]: {title, body (short), stat {value: number, prefix?, suffix?} (optional), tone light|dark|accent, icon}} an at-a-glance overview of the topic's parts, one number in a stat card where a real number from the material fits.
-- Analogy: {icon, concept, realLife, bullets[2-4]} an everyday comparison.
-- RepeatBurst: {label, count 10-1000, icon} "write it once, run it N times" - use ONLY for repetition and loops.
-- CodeReveal: {code, language, highlightLines[], caption} code adapted from the material, at most 8 lines.
-- ArrayViz: {name, items[2-8] short strings of at most 8 characters, mode iterate|index|append, focusIndex (index mode: use a negative number to show counting from the end), appendValue (append mode)} for lists and arrays: iterate shows a loop walking the list, index shows positions, append shows a list growing. Use ONLY when the topic involves lists or arrays.
-- ${args.allowTrace ? "VariableTracker: {code} short Python (at most 6 lines, no input(), no imports) whose variables change step by step. Do NOT write the steps; they are computed by running the code." : "Do NOT use VariableTracker (the course is not in Python)."}
-- FlowDiagram: {variant loop|branch, labels{start, init, condition, body, update, alternative, exit}} labels are very short phrases. Use for loops and decisions.
-- Checkpoint: {exerciseId, prompt} exactly one, last, using one of these exercise ids:
-${ex}
-icon is one of repeat|package|list|key|map|clock|ticket|building|music|shopping-cart|code|bug|rocket|lightbulb|puzzle|layers|target|zap|book.
-Teach the idea with an analogy first, then code, then the trace or flowchart, then the checkpoint. Explain in simple ${args.uiLang === "hi" ? "Hindi (Devanagari script; keep code and identifiers in English)" : "English"}.`;
 }
 
 export function quizPrompt(args: {

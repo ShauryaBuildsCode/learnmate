@@ -7,9 +7,14 @@ const serverSchema = z.object({
   GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  /** The live tutor (Guru) talks to the student, so it gets the stronger model even when generation uses a fast one. */
+  ANTHROPIC_TUTOR_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
+  ANTHROPIC_FALLBACK_MODEL: z.string().min(1).default("claude-sonnet-5-5"),
   GEMINI_TTS_MODEL: z.string().min(1).default("gemini-3.8-flash-tts"),
   GROQ_API_KEY: z.string().min(1),
   GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
+  /** Writes lesson scripts, which need a bigger model than the instant assists. */
+  GROQ_LESSON_MODEL: z.string().min(1).default("openai/gpt-oss-120b"),
   ONLINECOMPILER_API_KEY: z.string().min(1),
   ONLINECOMPILER_URL: z.string().url().default("https://api.onlinecompiler.io"),
 });

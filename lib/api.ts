@@ -18,7 +18,8 @@ export async function authorize(
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return jsonError(401, "Please sign in again.");
-  if (route && !allow(`${route}:${user.id}`, LIMITS[route])) {
+  // A missing entry (say a stale dev bundle) must never turn into a 500: fall back to the generous default.
+  if (route && !allow(`${route}:${user.id}`, LIMITS[route] ?? LIMITS.light)) {
     return jsonError(429, "You're going a little fast. Wait a few seconds and try again.");
   }
   return { supabase, user };

@@ -1,5 +1,6 @@
 import Groq from "groq-sdk";
 import { serverEnv } from "@/lib/env";
+import { extractJson } from "./json";
 import type { TutorTurn } from "./types";
 import { logUsage } from "./usage";
 
@@ -53,4 +54,45 @@ export async function* groqStream(
     const text = chunk.choices[0]?.delta?.content;
     if (text) yield text;
   }
+}
+
+const LONG_TIMEOUT_MS = 90_000;
+
+/**
+ * Longer Groq generation that returns a JSON object described in the prompt (used for lesson scripts).
+ * Unlike the quick assists this allows time to think and a large output. The caller validates the result.
+ */
+export async function groqJson(input: {
+  model?: string;
+  system: string;
+  prompt: string;
+  maxTokens: number;
+  task: string;
+  /** Lower is faster; short grading tasks use "low". */
+  effort?: "low" | "medium" | "high";
+  timeoutMs?: number;
+}): Promise<unknown> {
+  const response = await groq().chat.completions.create(
+    {
+      model: input.model ?? serverEnv().GROQ_LESSON_MODEL,
+      max_tokens: input.maxTokens,
+      temperature: 0.5,
+      reasoning_effort: input.effort ?? "medium",
+      messages: [
+        { role: "system", content: input.system },
+        { role: "user", content: input.prompt },
+      ],
+    },
+    { timeout: input.timeoutMs ?? LONG_TIMEOUT_MS, maxRetries: 0 },
+  );
+  const cached = response.usage?.prompt_tokens_details?.cached_tokens ?? 0;
+  logUsage("groq", input.task, {
+    input: (response.usage?.prompt_tokens ?? 0) - cached,
+    cached,
+    output: response.usage?.completion_tokens ?? 0,
+  });
+  const choice = response.choices[0];
+  if (choice?.finish_reason === "length")
+    throw new Error("The reply was cut off before the JSON finished.");
+  return extractJson(choice?.message?.content ?? "");
 }

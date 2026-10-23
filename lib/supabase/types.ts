@@ -8,7 +8,16 @@ type Table<Row, Insert> = {
   Relationships: [];
 };
 
-export type ProfileRow = { id: string; display_name: string | null; ui_lang: "en" | "hi" };
+export type ProfileRow = {
+  id: string;
+  display_name: string | null;
+  ui_lang: "en" | "hi";
+  goal: string | null;
+  level: "beginner" | "intermediate" | "advanced" | null;
+  interests: string | null;
+  daily_minutes: number | null;
+  onboarded_at: string | null;
+};
 export type CourseRow = {
   id: string;
   user_id: string;
@@ -17,6 +26,8 @@ export type CourseRow = {
   source_type: "pdf" | "text";
   storage_path: string | null;
   page_count: number;
+  kind: "programming" | "concepts";
+  language: string | null;
   created_at: string;
 };
 export type CoursePageRow = { course_id: string; page_no: number; text: string };
@@ -87,6 +98,55 @@ export type TutorMessageRow = {
   provider: string | null;
   created_at: string;
 };
+export type StudyNotesRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  ui_lang: "en" | "hi";
+  notes: Json;
+  created_at: string;
+};
+export type MindMapRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  ui_lang: "en" | "hi";
+  graph: Json;
+  created_at: string;
+};
+export type ChecklistItemRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  label: string;
+  done: boolean;
+  created_at: string;
+};
+export type StudyEventRow = {
+  id: string;
+  user_id: string;
+  course_id: string;
+  topic_id: string | null;
+  kind: "lesson" | "notes" | "mindmap";
+  created_at: string;
+};
+export type PracticeItemRow = {
+  id: string;
+  course_id: string;
+  topic_id: string;
+  kind: "mcq" | "short" | "cloze";
+  data: Json;
+  page: number;
+};
+export type PracticeAnswerRow = {
+  id: string;
+  user_id: string;
+  item_id: string;
+  answer: string;
+  correct: boolean;
+  feedback: string | null;
+  created_at: string;
+};
 export type HintStateRow = { user_id: string; exercise_id: string; rung: number };
 
 type WithDefaults<Row, Optional extends keyof Row> = Omit<Row, Optional> &
@@ -95,8 +155,23 @@ type WithDefaults<Row, Optional extends keyof Row> = Omit<Row, Optional> &
 export type Database = {
   public: {
     Tables: {
-      profiles: Table<ProfileRow, WithDefaults<ProfileRow, "display_name" | "ui_lang">>;
-      courses: Table<CourseRow, WithDefaults<CourseRow, "id" | "storage_path" | "created_at">>;
+      profiles: Table<
+        ProfileRow,
+        WithDefaults<
+          ProfileRow,
+          | "display_name"
+          | "ui_lang"
+          | "goal"
+          | "level"
+          | "interests"
+          | "daily_minutes"
+          | "onboarded_at"
+        >
+      >;
+      courses: Table<
+        CourseRow,
+        WithDefaults<CourseRow, "id" | "storage_path" | "created_at" | "kind" | "language">
+      >;
       course_pages: Table<CoursePageRow, CoursePageRow>;
       topics: Table<TopicRow, WithDefaults<TopicRow, "id" | "pages">>;
       exercises: Table<ExerciseRow, WithDefaults<ExerciseRow, "id">>;
@@ -108,7 +183,25 @@ export type Database = {
         TutorMessageRow,
         WithDefaults<TutorMessageRow, "id" | "context" | "provider" | "created_at">
       >;
+      practice_items: Table<PracticeItemRow, WithDefaults<PracticeItemRow, "id">>;
+      practice_answers: Table<
+        PracticeAnswerRow,
+        WithDefaults<PracticeAnswerRow, "id" | "feedback" | "created_at">
+      >;
       hint_state: Table<HintStateRow, WithDefaults<HintStateRow, "rung">>;
+      study_notes: Table<
+        StudyNotesRow,
+        WithDefaults<StudyNotesRow, "id" | "ui_lang" | "created_at">
+      >;
+      mind_maps: Table<MindMapRow, WithDefaults<MindMapRow, "id" | "ui_lang" | "created_at">>;
+      checklist_items: Table<
+        ChecklistItemRow,
+        WithDefaults<ChecklistItemRow, "id" | "done" | "created_at">
+      >;
+      study_events: Table<
+        StudyEventRow,
+        WithDefaults<StudyEventRow, "id" | "topic_id" | "created_at">
+      >;
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;

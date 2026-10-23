@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { synthesizeNarration } from "@/lib/ai/tts";
+import { alignWords, analyze } from "@/lib/audio/align";
 import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
 
@@ -18,6 +19,14 @@ export interface NarrationResult {
 }
 
 export class LessonMissingError extends Error {}
+
+/** Per-word start times measured from the recording, or undefined if the audio can't be analysed. */
+export function wordTimes(narration: string, wav: Buffer): number[] | undefined {
+  const analysis = analyze(wav);
+  return analysis
+    ? alignWords(narration, analysis).map((t) => Math.round(t * 1000) / 1000)
+    : undefined;
+}
 
 export function narrationPath(userId: string, text: string, uiLang: string): string {
   return `${userId}/${createHash("sha1").update(`${uiLang}|${text}`).digest("hex")}.wav`;
@@ -40,6 +49,25 @@ export async function recordNarration(
   if (!row || !parsed?.success) throw new LessonMissingError();
 
   const script = parsed.data;
+  // Recordings made before word timing existed get it now, from the stored audio (no new speech is generated).
+  let backfilled = false;
+  await Promise.all(
+    script.scenes.map(async (scene, index) => {
+      if (!scene.audio || scene.audio.words) return;
+      const { data } = await supabase.storage.from(NARRATION_BUCKET).download(scene.audio.path);
+      if (!data) return;
+      const words = wordTimes(scene.narration, Buffer.from(await data.arrayBuffer()));
+      if (!words) return;
+      script.scenes[index] = { ...scene, audio: { ...scene.audio, words } };
+      backfilled = true;
+    }),
+  );
+  const saveScript = () =>
+    supabase
+      .from("lessons")
+      .update({ script: script as unknown as Json })
+      .eq("id", row.id);
+
   const todo = script.scenes
     .map((scene, index) => ({ scene, index }))
     .filter(({ scene }) => !scene.audio);
@@ -50,7 +78,10 @@ export async function recordNarration(
       .from(NARRATION_BUCKET)
       .upload(path, wav, { contentType: "audio/wav", upsert: true });
     if (error) throw error;
-    script.scenes[index] = { ...scene, audio: { path, seconds } };
+    script.scenes[index] = {
+      ...scene,
+      audio: { path, seconds, words: wordTimes(scene.narration, wav) },
+    };
   };
 
   // Do the first scene alone: if recording or storing it fails (e.g. the bucket isn't set up), stop before
@@ -65,6 +96,7 @@ export async function recordNarration(
         "[narration] first scene failed, skipping the rest:",
         error instanceof Error ? error.message : error,
       );
+      if (backfilled) await saveScript();
       return { script, recorded: script.scenes.filter((s) => s.audio).length, failed: todo.length };
     }
   }
@@ -89,11 +121,6 @@ export async function recordNarration(
   );
 
   const recorded = script.scenes.filter((s) => s.audio).length;
-  if (todo.length > failed) {
-    await supabase
-      .from("lessons")
-      .update({ script: script as unknown as Json })
-      .eq("id", row.id);
-  }
+  if (todo.length > failed || backfilled) await saveScript();
   return { script, recorded, failed: script.scenes.length - recorded };
 }

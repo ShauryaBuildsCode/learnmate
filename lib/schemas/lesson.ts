@@ -27,8 +27,19 @@ const base = {
   narration: z.string().min(10).max(600),
   seconds: z.number().min(4).max(40),
   page: z.number().int().positive(),
+  /** How the scene should feel: calm for explanation, punchy for recaps and transitions. */
+  energy: z.enum(["calm", "balanced", "punchy"]).optional(),
+  /** Words from this scene's narration that deserve a visual punch (camera push, caption highlight). */
+  emphasis: z.array(z.string().max(30)).max(3).optional(),
   /** Recorded narration for this scene (set by /api/narration, never by the model). */
-  audio: z.object({ path: z.string(), seconds: z.number().positive() }).optional(),
+  audio: z
+    .object({
+      path: z.string(),
+      seconds: z.number().positive(),
+      /** Start time (seconds) of each narration word, measured from the recording's pauses. */
+      words: z.array(z.number()).optional(),
+    })
+    .optional(),
 };
 
 export const traceStepSchema = z.object({
@@ -125,6 +136,28 @@ export const sceneSchema = z.discriminatedUnion("type", [
     appendValue: z.string().max(8).optional(),
   }),
   z.object({
+    type: z.literal("Steps"),
+    ...base,
+    /** A process or sequence: numbered steps that connect one after another as each is spoken. */
+    steps: z
+      .array(z.object({ label: z.string().max(28), detail: z.string().max(80).optional() }))
+      .min(3)
+      .max(6),
+  }),
+  z.object({
+    type: z.literal("Compare"),
+    ...base,
+    /** Two things side by side, point by point. */
+    left: z.object({
+      title: z.string().max(30),
+      points: z.array(z.string().max(60)).min(2).max(4),
+    }),
+    right: z.object({
+      title: z.string().max(30),
+      points: z.array(z.string().max(60)).min(2).max(4),
+    }),
+  }),
+  z.object({
     type: z.literal("RepeatBurst"),
     ...base,
     /** "Write it once, run it N times": a mosaic of tiles zooms out as a counter climbs. */
@@ -144,6 +177,8 @@ export type SceneType = Scene["type"];
 
 export const lessonScriptSchema = z.object({
   title: z.string().max(100),
+  /** Which model directed the lesson; set by the server, never by the model. */
+  directedBy: z.enum(["groq", "claude", "gemini"]).optional(),
   scenes: z.array(sceneSchema).min(3).max(16),
 });
 export type LessonScript = z.infer<typeof lessonScriptSchema>;
@@ -154,5 +189,9 @@ export type LessonScript = z.infer<typeof lessonScriptSchema>;
  */
 export const lessonEnvelopeSchema = z.object({
   title: z.string().max(200),
+  directedBy: z.enum(["groq", "claude", "gemini"]).optional(),
   scenes: z.array(z.record(z.string(), z.unknown())).min(3).max(20),
 });
+
+/** Animation tempo for a scene's energy. */
+export const ENERGY_TEMPO = { calm: 0.85, balanced: 1, punchy: 1.25 } as const;
