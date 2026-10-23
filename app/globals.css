@@ -113,17 +113,29 @@ body {
     var(--background);
 }
 
-.hero-cinematic {
-  isolation: isolate;
-  background: var(--background);
-}
-
 .hero-aurora {
   pointer-events: none;
   position: absolute;
   inset: 0;
   z-index: -1;
   overflow: hidden;
+}
+
+/* A visible gradient base also covers delayed or disabled animation layers. */
+.hero-cinematic {
+  isolation: isolate;
+  background:
+    radial-gradient(
+      ellipse at 15% 20%,
+      color-mix(in srgb, var(--aurora-one) 45%, transparent),
+      transparent 65%
+    ),
+    radial-gradient(
+      ellipse at 85% 15%,
+      color-mix(in srgb, var(--aurora-two) 40%, transparent),
+      transparent 65%
+    ),
+    var(--background);
 }
 
 .hero-aurora__mesh {
