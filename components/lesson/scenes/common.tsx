@@ -42,6 +42,7 @@ function Captions({ narration, emphasis }: { narration: string; emphasis: Set<st
   const start = Math.floor(current / CAPTION_WORDS) * CAPTION_WORDS;
   return (
     <div
+      data-caption
       style={{
         position: "absolute",
         left: 90,
@@ -80,31 +81,35 @@ function Captions({ narration, emphasis }: { narration: string; emphasis: Set<st
   );
 }
 
-/** Quiet icon tiles drifting behind the content, so even text-heavy scenes keep moving. */
+/**
+ * Quiet icon tiles drifting in the margins. They live only in the outer bands, clear of the content area, so they
+ * decorate without ever sitting behind or over a word.
+ */
 function AmbientTiles() {
   const frame = useCurrentFrame();
   return (
     <AbsoluteFill style={{ pointerEvents: "none" }}>
-      {Array.from({ length: 8 }, (_, i) => {
-        const x = 40 + seeded(i, 2) * 1160;
-        const y = 70 + seeded(i, 5) * 440;
-        const drift = Math.sin(frame / 34 + i * 1.7) * 16;
-        const sway = Math.cos(frame / 41 + i) * 10;
+      {Array.from({ length: 6 }, (_, i) => {
+        const left = i % 2 === 0;
+        const size = 36 + (i % 3) * 6;
+        const x = left ? 8 + seeded(i, 2) * 16 : 1280 - size - 8 - seeded(i, 2) * 16;
+        const y = 110 + Math.floor(i / 2) * 140 + seeded(i, 5) * 40;
+        const drift = Math.sin(frame / 34 + i * 1.7) * 10;
         return (
           <div
             key={i}
             style={{
               position: "absolute",
-              left: x + sway,
+              left: x,
               top: y + drift,
-              opacity: 0.16,
+              opacity: 0.14,
               transform: `rotate(${Math.sin(frame / 50 + i) * 8}deg)`,
             }}
           >
             <IconTile
               icon={ICON_NAMES[(i * 3) % ICON_NAMES.length]}
               tone={TONE_CYCLE[i % TONE_CYCLE.length]}
-              size={48 + (i % 3) * 14}
+              size={size}
             />
           </div>
         );

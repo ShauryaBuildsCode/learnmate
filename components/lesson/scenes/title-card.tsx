@@ -2,6 +2,7 @@ import { Easing, interpolate, useCurrentFrame } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import {
+  fitText,
   ICON_NAMES,
   IconTile,
   lerp,
@@ -10,20 +11,20 @@ import {
   seeded,
   TONE_CYCLE,
   useSquash,
+  wrapWords,
   useTween,
 } from "./kit";
 
 const CX = 556;
 const CY = 205;
-/** Resting spots flank the title and one sits top-right, so nothing ever crosses the words or the hook. */
+/** Resting spots sit in the left and right margins (the title is at most 820px wide, centred), so tiles never touch the words. */
 const REST: Point[] = [
-  { x: CX - 470, y: CY - 130 },
-  { x: CX - 400, y: CY + 95 },
-  { x: CX - 525, y: CY - 5 },
-  { x: CX + 480, y: CY - 140 },
-  { x: CX + 410, y: CY + 100 },
-  { x: CX + 530, y: CY - 5 },
-  { x: CX + 300, y: 34 },
+  { x: 44, y: 60 },
+  { x: 1068, y: 110 },
+  { x: 40, y: 215 },
+  { x: 1072, y: 250 },
+  { x: 48, y: 360 },
+  { x: 1064, y: 380 },
 ];
 interface Point {
   x: number;
@@ -36,7 +37,9 @@ interface Point {
  */
 export function TitleCard({ scene }: { scene: Extract<Scene, { type: "TitleCard" }> }) {
   const frame = useCurrentFrame();
+  const title = fitTitle(scene.title);
   const words = scene.title.split(/\s+/);
+  const hook = fitText(scene.hook, 760, { max: 34, min: 22, maxLines: 2, charW: 0.5 });
   const sun = useTween(0, 46, Easing.expoOut);
   const ring = useTween(6, 60, Easing.inOutQuart);
   const underline = useTween(10 + words.length * 5 + 8, 22, Easing.expoOut);
@@ -44,7 +47,8 @@ export function TitleCard({ scene }: { scene: Extract<Scene, { type: "TitleCard"
 
   return (
     <SceneFrame label="Topic" page={scene.page} narration={scene.narration}>
-      <div style={{ position: "absolute", inset: 0 }}>
+      {/* a 100%-sized box in the content area, so every coordinate below is relative to it (not to the whole stage) */}
+      <div style={{ position: "relative", width: "100%", height: "100%" }}>
         {/* sun */}
         <div
           style={{
@@ -85,7 +89,7 @@ export function TitleCard({ scene }: { scene: Extract<Scene, { type: "TitleCard"
           />
         </svg>
 
-        {Array.from({ length: 7 }, (_, i) => (
+        {Array.from({ length: REST.length }, (_, i) => (
           <FlyingTile key={i} index={i} />
         ))}
 
@@ -100,38 +104,48 @@ export function TitleCard({ scene }: { scene: Extract<Scene, { type: "TitleCard"
             textAlign: "center",
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              justifyContent: "center",
-              gap: "0 28px",
-              maxWidth: 960,
-            }}
-          >
-            {words.map((w, i) => (
-              <Reveal key={i} delay={10 + i * 5} duration={26}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+            {(() => {
+              let n = 0;
+              return title.lines.map((line, li) => (
                 <div
+                  key={li}
                   style={{
-                    fontSize: 116,
-                    fontWeight: 800,
-                    letterSpacing: lerp(
-                      -9,
-                      -4,
-                      Math.min(1, Math.max(0, (frame - 10 - i * 5) / 30)),
-                    ),
-                    lineHeight: 1.03,
+                    display: "flex",
+                    justifyContent: "center",
+                    columnGap: title.size * 0.26,
                   }}
                 >
-                  {w}
+                  {line.split(" ").map((w) => {
+                    const i = n++;
+                    return (
+                      <Reveal key={i} delay={10 + i * 5} duration={26}>
+                        <div
+                          style={{
+                            fontSize: title.size,
+                            fontWeight: 800,
+                            letterSpacing: lerp(
+                              -title.size * 0.075,
+                              -title.size * 0.034,
+                              Math.min(1, Math.max(0, (frame - 10 - i * 5) / 30)),
+                            ),
+                            lineHeight: 1.05,
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {w}
+                        </div>
+                      </Reveal>
+                    );
+                  })}
                 </div>
-              </Reveal>
-            ))}
+              ));
+            })()}
           </div>
           <div
             style={{
               height: 11,
-              width: 300,
+              width: Math.min(300, title.width),
               borderRadius: 6,
               background: PALETTE.orange,
               marginTop: 10,
@@ -140,8 +154,17 @@ export function TitleCard({ scene }: { scene: Extract<Scene, { type: "TitleCard"
             }}
           />
           <Reveal delay={hookDelay} duration={24} style={{ marginTop: 26 }}>
-            <div style={{ fontSize: 36, fontWeight: 600, color: PALETTE.muted, maxWidth: 840 }}>
-              {scene.hook}
+            <div
+              style={{
+                fontSize: hook.size,
+                fontWeight: 600,
+                color: PALETTE.muted,
+                lineHeight: 1.25,
+              }}
+            >
+              {hook.lines.map((l, i) => (
+                <div key={i}>{l}</div>
+              ))}
             </div>
           </Reveal>
         </div>
@@ -183,4 +206,20 @@ function FlyingTile({ index }: { index: number }) {
       />
     </div>
   );
+}
+
+/**
+ * The largest title size (116px down to 52px) whose lines fit 820px wide and a 210px-tall block, so a long title
+ * shrinks and wraps instead of running over the hook or the captions.
+ */
+function fitTitle(text: string): { size: number; lines: string[]; width: number } {
+  const maxWidth = 820;
+  for (let size = 116; size >= 52; size -= 4) {
+    const lines = wrapWords(text, Math.floor(maxWidth / (size * 0.6)));
+    const widest = Math.max(...lines.map((l) => l.length)) * size * 0.6;
+    if (lines.length * size * 1.05 <= 210 && widest <= maxWidth)
+      return { size, lines, width: widest };
+  }
+  const lines = wrapWords(text, Math.floor(maxWidth / (52 * 0.6)));
+  return { size: 52, lines, width: maxWidth };
 }

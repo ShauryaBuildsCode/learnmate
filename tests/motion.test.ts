@@ -126,3 +126,29 @@ describe("narration cues", () => {
     expect(cueFrame("", 300, "anything", 12)).toBe(12);
   });
 });
+
+import { fitText, wrapWords } from "@/components/lesson/scenes/kit";
+describe("fitText", () => {
+  it("wraps by words and keeps a long word on its own line", () => {
+    expect(wrapWords("one two three four", 8)).toEqual(["one two", "three", "four"]);
+    expect(wrapWords("tiny extraordinarily tiny", 6)).toEqual(["tiny", "extraordinarily", "tiny"]);
+  });
+  it("shrinks text until it fits the width and line limit", () => {
+    const short = fitText("Loops", 600, { max: 60, min: 20 });
+    const long = fitText("A staircase where every step is the same height", 400, {
+      max: 36,
+      min: 20,
+      maxLines: 2,
+    });
+    expect(short.size).toBe(60);
+    expect(long.size).toBeLessThan(36);
+    expect(long.lines.length).toBeLessThanOrEqual(2);
+    expect(long.lines.every((l) => l.length * long.size * 0.6 <= 400)).toBe(true);
+  });
+  it("cuts with an ellipsis only at the minimum size", () => {
+    const cut = fitText("word ".repeat(40).trim(), 200, { max: 30, min: 18, maxLines: 2 });
+    expect(cut.size).toBe(18);
+    expect(cut.lines).toHaveLength(2);
+    expect(cut.lines[1].endsWith("…")).toBe(true);
+  });
+});

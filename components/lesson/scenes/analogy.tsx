@@ -1,7 +1,17 @@
 import { Easing, useCue, useCurrentFrame } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
-import { Card, DrawPath, IconTile, lerp, PALETTE, Reveal, useSquash, useTween } from "./kit";
+import {
+  Card,
+  DrawPath,
+  fitText,
+  IconTile,
+  lerp,
+  PALETTE,
+  Reveal,
+  useSquash,
+  useTween,
+} from "./kit";
 
 type Props = { scene: Extract<Scene, { type: "Analogy" }> };
 
@@ -18,11 +28,14 @@ export function Analogy({ scene }: Props) {
   const concept = useTween(conceptAt, 26, Easing.expoOut);
   const real = useTween(realAt, 26, Easing.expoOut);
   const link = useTween(Math.max(conceptAt + 8, realAt - 8), 22, Easing.inOutQuart);
+  const conceptFit = fitText(scene.concept, 330, { max: 36, min: 22, maxLines: 2 });
+  const realFit = fitText(scene.realLife, 420, { max: 36, min: 22, maxLines: 2 });
+  const bulletSize = Math.max(22, 32 - (scene.bullets.length - 2) * 2);
   const bulletAt = scene.bullets.map((b, i) => cue(b, 56 + i * 20, 6, 74 + i * 22));
 
   return (
     <SceneFrame label="Think of it like this" page={scene.page} narration={scene.narration} ambient>
-      <div style={{ display: "flex", gap: 56, alignItems: "center", height: "100%" }}>
+      <div style={{ display: "flex", gap: 44, alignItems: "center", height: "100%" }}>
         <div style={{ position: "relative", flexShrink: 0 }}>
           {[0, 0.5].map((o) => {
             const r = ((Math.max(0, frame - 20) / 70 + o) % 1) * (frame > 20 ? 1 : 0);
@@ -45,11 +58,11 @@ export function Analogy({ scene }: Props) {
               transform: `scale(${iconIn.sx * iconIn.p}, ${iconIn.sy * iconIn.p}) rotate(${lerp(-110, 0, Math.min(1, iconIn.p))}deg)`,
             }}
           >
-            <IconTile icon={scene.icon} tone="orange" size={230} />
+            <IconTile icon={scene.icon} tone="orange" size={180} />
           </div>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 30 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 26 }}>
             <div
               style={{
                 opacity: Math.min(1, concept * 3),
@@ -58,13 +71,15 @@ export function Analogy({ scene }: Props) {
             >
               <Card
                 style={{
-                  padding: "16px 28px",
-                  fontSize: 36,
+                  padding: "14px 24px",
+                  fontSize: conceptFit.size,
                   fontWeight: 800,
-                  whiteSpace: "nowrap",
+                  lineHeight: 1.15,
                 }}
               >
-                {scene.concept}
+                {conceptFit.lines.map((l, i) => (
+                  <div key={i}>{l}</div>
+                ))}
               </Card>
             </div>
             <svg width={96} height={36} viewBox="0 0 96 36" style={{ overflow: "visible" }}>
@@ -85,18 +100,20 @@ export function Analogy({ scene }: Props) {
               <Card
                 tone="black"
                 style={{
-                  padding: "16px 28px",
-                  fontSize: 36,
+                  padding: "14px 24px",
+                  fontSize: realFit.size,
                   fontWeight: 800,
-                  whiteSpace: "nowrap",
+                  lineHeight: 1.15,
                 }}
               >
-                {scene.realLife}
+                {realFit.lines.map((l, i) => (
+                  <div key={i}>{l}</div>
+                ))}
               </Card>
             </div>
           </div>
           {scene.bullets.map((b, i) => (
-            <Bullet key={i} text={b} at={bulletAt[i]} />
+            <Bullet key={i} text={b} at={bulletAt[i]} size={bulletSize} />
           ))}
         </div>
       </div>
@@ -104,7 +121,8 @@ export function Analogy({ scene }: Props) {
   );
 }
 
-function Bullet({ text, at }: { text: string; at: number }) {
+function Bullet({ text, at, size }: { text: string; at: number; size: number }) {
+  const fit = fitText(text, 780, { max: size, min: 20, maxLines: 2, charW: 0.52 });
   const slide = useTween(at, 24, Easing.expoOut);
   const box = useTween(at + 4, 16, Easing.backOut);
   const tick = useTween(at + 10, 14, Easing.inOutQuart);
@@ -137,7 +155,11 @@ function Bullet({ text, at }: { text: string; at: number }) {
         </svg>
       </span>
       <Reveal delay={at + 4} duration={22}>
-        <div style={{ fontSize: 31, fontWeight: 600 }}>{text}</div>
+        <div style={{ fontSize: fit.size, fontWeight: 600, lineHeight: 1.2 }}>
+          {fit.lines.map((l, i) => (
+            <div key={i}>{l}</div>
+          ))}
+        </div>
       </Reveal>
     </div>
   );

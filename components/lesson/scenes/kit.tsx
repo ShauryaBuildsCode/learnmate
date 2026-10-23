@@ -287,3 +287,45 @@ export function DrawPath({
 }
 
 export const tabular: CSSProperties = { fontVariantNumeric: "tabular-nums" };
+
+/** Greedy word wrap by an estimated character budget. A word longer than the budget sits alone on its line. */
+export function wrapWords(text: string, maxChars: number): string[] {
+  const lines: string[] = [];
+  let line = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    if (line && (line + " " + word).length > maxChars) {
+      lines.push(line);
+      line = word;
+    } else line = line ? `${line} ${word}` : word;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/**
+ * Picks the largest font size (down to `min`) at which `text` fits `width` px in at most `maxLines` lines, so
+ * long labels shrink and wrap instead of overflowing. `charW` is the average glyph width as a share of the font size
+ * (about 0.6 for the heavy weights used here). At the minimum size, text that still doesn't fit is cut with an ellipsis.
+ */
+export function fitText(
+  text: string,
+  width: number,
+  {
+    max,
+    min,
+    maxLines = 1,
+    charW = 0.6,
+  }: { max: number; min: number; maxLines?: number; charW?: number },
+): { size: number; lines: string[] } {
+  for (let size = max; size >= min; size -= 2) {
+    const lines = wrapWords(text, Math.max(1, Math.floor(width / (size * charW))));
+    if (lines.length <= maxLines && lines.every((l) => l.length * size * charW <= width))
+      return { size, lines };
+  }
+  const budget = Math.max(1, Math.floor(width / (min * charW)));
+  const lines = wrapWords(text, budget).slice(0, maxLines);
+  const last = lines.length - 1;
+  if (last >= 0 && wrapWords(text, budget).length > maxLines)
+    lines[last] = `${lines[last].slice(0, Math.max(1, budget - 1)).trimEnd()}…`;
+  return { size: min, lines };
+}

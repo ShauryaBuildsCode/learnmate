@@ -1,7 +1,7 @@
 import { Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
-import { DrawPath, FONT, lerp, PALETTE, useSquash, useTween } from "./kit";
+import { DrawPath, FONT, fitText, lerp, PALETTE, useSquash, useTween } from "./kit";
 
 type Props = { scene: Extract<Scene, { type: "FlowDiagram" }> };
 interface Point {
@@ -78,20 +78,34 @@ function NodeShape({
   const fill = active ? "#fff1dd" : PALETTE.card;
   const { x, y } = node.at;
   const bump = 1 + pulse * 0.09;
+  const w = node.shape === "pill" ? 130 : 190;
+  // Labels wrap and shrink inside their shape instead of spilling over their neighbours.
+  const textW = node.shape === "diamond" ? 150 : node.shape === "pill" ? 112 : 168;
+  const fit = fitText(node.label, textW, {
+    max: 22,
+    min: 12,
+    maxLines: node.shape === "pill" ? 2 : 3,
+    charW: 0.56,
+  });
+  const lineH = fit.size * 1.18;
   const text = (
     <text
       x={x}
-      y={y + 7}
+      y={y - ((fit.lines.length - 1) * lineH) / 2 + fit.size * 0.34}
       textAnchor="middle"
       fill={PALETTE.ink}
-      fontSize={22}
+      fontSize={fit.size}
       fontWeight={700}
       fontFamily={FONT}
     >
-      {node.label}
+      {fit.lines.map((l, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : lineH}>
+          {l}
+        </tspan>
+      ))}
     </text>
   );
-  const w = node.shape === "pill" ? 130 : 190;
+  const boxH = Math.max(68, fit.lines.length * lineH + 26);
   return (
     <g
       transform={`translate(${x} ${y}) scale(${sx * p * bump} ${sy * p * bump}) translate(${-x} ${-y})`}
@@ -107,9 +121,9 @@ function NodeShape({
       ) : (
         <rect
           x={x - w / 2}
-          y={y - 34}
+          y={y - boxH / 2}
           width={w}
-          height={68}
+          height={boxH}
           rx={node.shape === "pill" ? 34 : 14}
           fill={fill}
           stroke={stroke}

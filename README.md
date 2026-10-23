@@ -55,6 +55,10 @@ Measured on the live app (Claude Haiku 5.5 as the main model, medium-length cour
 
 The first lesson is also written in the background as soon as a course is created, so it is usually ready when the student opens it.
 
+### Lesson layout QA
+
+Every scene fits any content the model can send: text is measured and shrunk or wrapped to its box (`fitText` in `components/lesson/scenes/kit.tsx`), grids size themselves to the number of items, and decorative tiles live only in the margins. `/scenes/qa` renders every scene type with worst-case content, and `e2e/scene-layout.spec.ts` fails if any word is cut off by the frame, runs into the captions, or collides with another word.
+
 ### Prompt caching
 
 - **Claude:** persona and the whole course text lead the prompt with a 1-hour cache breakpoint, plus top-level caching of the conversation. Measured: **99% of the 3,180-token prefix is read from cache** on every call after the first.

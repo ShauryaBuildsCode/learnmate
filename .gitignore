@@ -42,3 +42,4 @@ next-env.d.ts
 
 # reference media
 *.mp4
+test-results/
