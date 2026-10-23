@@ -175,3 +175,25 @@ describe("onlinecompiler.io mapping", () => {
     });
   });
 });
+
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import path from "node:path";
+import { LIMITS } from "@/lib/rate-limit";
+
+describe("rate limits", () => {
+  it("has an entry for every route name passed to authorize()", () => {
+    const names = new Set<string>();
+    const walk = (dir: string) => {
+      for (const f of readdirSync(dir)) {
+        const full = path.join(dir, f);
+        if (statSync(full).isDirectory()) walk(full);
+        else if (f === "route.ts")
+          for (const m of readFileSync(full, "utf8").matchAll(/authorize\("([a-z]+)"\)/g))
+            names.add(m[1]);
+      }
+    };
+    walk(path.join(process.cwd(), "app/api"));
+    expect(names.size).toBeGreaterThan(3);
+    for (const n of names) expect(Object.keys(LIMITS), `missing LIMITS.${n}`).toContain(n);
+  });
+});
