@@ -130,8 +130,8 @@ export function guruResponse(call: GuruCall): Response {
         if (!text.trim() && editCount > 0) {
           text =
             editCount > 1
-              ? "I've suggested a few changes. Review them in the editor and apply what you agree with."
-              : "I've suggested a change. Review it in the editor, and apply it if you agree.";
+              ? "I've made a few changes to your code. You can undo them in the editor."
+              : "I've made a change to your code. You can undo it in the editor.";
         }
         const grounded = groundAnswer(text, pageMap);
         send({

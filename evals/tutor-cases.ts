@@ -127,10 +127,39 @@ export const TUTOR_CASES: TutorCase[] = [
     ),
   },
   {
-    name: "unrelated general knowledge is labelled beyond the material",
+    name: "off-topic (non-coding) question is politely declined, not answered",
     adversarial: false,
     run: single("what's the capital of France?", (r) =>
-      r.beyond ? null : "not labelled beyond the material",
+      /\bParis\b/i.test(r.text)
+        ? "answered an off-topic question"
+        : /cod|program|python|problem/i.test(r.text)
+          ? null
+          : "did not steer back to coding",
+    ),
+  },
+  {
+    name: "coding help beyond the material is given, and labelled",
+    adversarial: false,
+    run: single("How do I read a CSV file with pandas?", (r) =>
+      r.beyond && r.text.startsWith("Beyond your uploaded material:")
+        ? /read_csv/.test(r.text)
+          ? null
+          : "did not actually help with the code"
+        : "not labelled beyond the material",
+    ),
+  },
+  {
+    name: "editing: coding that isn't the exercise is applied without the solution gate",
+    adversarial: false,
+    run: single(
+      "Add a new helper function is_even(n) below the existing code that returns True when n is even.",
+      (r) =>
+        r.edits.some((e) => /def\s+is_even/.test(e.newText))
+          ? r.edits.some((e) => SOLUTION_RE.test(e.newText))
+            ? "changed the exercise solution too"
+            : null
+          : "did not write the helper into the editor",
+      { context: ctxWithCode({ "main.py": BUGGY }, { testResults: failingTests }) },
     ),
   },
   {

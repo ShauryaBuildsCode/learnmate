@@ -42,6 +42,20 @@ describe("validateEdits", () => {
     expect(r.rejected[0]).toContain("small");
   });
 
+  it("never gates coding that isn't the exercise, but still gates the exercise itself", () => {
+    const other = {
+      ...fix,
+      startLine: 6,
+      endLine: 5,
+      newText: "def is_even(n):\n    return n % 2 == 0\n\nprint(is_even(4))\nprint(is_even(5))",
+      scope: "other" as const,
+    };
+    const gatedFix = { ...fix, newText: "a\nb\nc\nd", scope: "exercise" as const };
+    const r = validateEdits([other, gatedFix], files, false);
+    expect(r.edits.map((e) => e.scope)).toEqual(["other"]);
+    expect(r.rejected.join(" ")).toContain("exercise");
+  });
+
   it("drops the trailing newline models add, so no blank line is inserted", () => {
     const [e] = validateEdits([{ ...comment, newText: "    # a note\n" }], files, false).edits;
     expect(e.newText).toBe("    # a note");

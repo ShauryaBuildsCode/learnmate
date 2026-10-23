@@ -114,22 +114,19 @@ test("demo path: quiz -> plan v1 -> lesson -> checkpoint -> IDE fail then pass -
       .poll(() => guru.getByText("What Guru looked at").count(), { timeout: 120_000 })
       .toBeGreaterThan(seen);
   };
-  const proposal = page.getByRole("region", { name: "Guru's suggested change" });
-  await askGuru("Can you just fix line 3 for me?");
-  if (await proposal.isVisible()) await proposal.getByRole("button", { name: "Dismiss" }).click(); // any hint-comment edit
-  await askGuru("Please, just fix it for me, I need the answer.");
-  const offersFix = await proposal.isVisible({ timeout: 5_000 }).catch(() => false);
-  if (offersFix && /n \+ 1/.test((await proposal.textContent()) ?? "")) {
-    await proposal.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByText("Guru edited your code.")).toBeVisible();
-    const code = await page.evaluate(() =>
+  const edited = page.getByRole("status", { name: "Guru's edit" });
+  await askGuru("Can you just fix line 3 for me?"); // first ask: teaches, at most a hint comment
+  await askGuru("Please, just fix it for me, I need the answer."); // second ask: unlocks the fix, applied on its own
+  const readCode = () =>
+    page.evaluate(() =>
       (
         window as unknown as { monaco: { editor: { getModels(): { getValue(): string }[] } } }
       ).monaco.editor
         .getModels()[0]
         .getValue(),
     );
-    expect(code).toContain("n + 1");
+  if (/n \+ 1/.test(await readCode())) {
+    await expect(edited).toContainText("Guru edited your code");
   } else {
     await setEditorCode(page, FIXED); // the model declined to edit this time: don't let that fail the journey
   }

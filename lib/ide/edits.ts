@@ -12,6 +12,8 @@ export const codeEditSchema = z.object({
   endLine: z.number().int().min(0),
   newText: z.string().max(4000),
   explanation: z.string().max(240),
+  /** "exercise": help with the exercise being worked on (policy-gated). "other": any other coding the student asked for. */
+  scope: z.enum(["exercise", "other"]).default("exercise"),
   before: z.array(z.string()),
 });
 export type CodeEdit = z.infer<typeof codeEditSchema>;
@@ -20,7 +22,7 @@ export type CodeEdit = z.infer<typeof codeEditSchema>;
 export const rawEditSchema = codeEditSchema.omit({ before: true });
 export type RawEdit = z.infer<typeof rawEditSchema>;
 
-/** Until the student has asked for the full solution twice, only small edits that don't solve the task. */
+/** While an exercise's solution is locked, edits to it are limited to small ones that don't solve it. */
 export const LIMITED_MAX_CHANGED_LINES = 3;
 export const LIMITED_MAX_EDITS = 2;
 export const FULL_MAX_CHANGED_LINES = 120;
@@ -42,14 +44,14 @@ export function validateEdits(
   files: Files,
   revealAllowed: boolean,
 ): ValidatedEdits {
-  const maxChanged = revealAllowed ? FULL_MAX_CHANGED_LINES : LIMITED_MAX_CHANGED_LINES;
-  const maxEdits = revealAllowed ? 6 : LIMITED_MAX_EDITS;
   const edits: CodeEdit[] = [];
   const rejected: string[] = [];
-  let changed = 0;
+  let changedLocked = 0;
+  let changedOpen = 0;
+  let locked = 0;
 
   for (const candidate of raw) {
-    if (edits.length >= maxEdits) {
+    if (edits.length >= 6) {
       rejected.push("too many edits at once");
       break;
     }
@@ -73,15 +75,24 @@ export function validateEdits(
     const removed = lines.slice(e.startLine - 1, e.endLine);
     const added = splitLines(e.newText);
     const size = Math.max(removed.length, added.length);
-    if (changed + size > maxChanged) {
-      rejected.push(
-        revealAllowed
-          ? "edit is too large"
-          : "only small, non-solution edits are allowed until the student asks for the solution again",
-      );
-      continue;
+    // Coding that isn't the current exercise is never gated. The exercise is, until the solution is unlocked.
+    const gated = e.scope === "exercise" && !revealAllowed;
+    if (gated) {
+      if (locked >= LIMITED_MAX_EDITS || changedLocked + size > LIMITED_MAX_CHANGED_LINES) {
+        rejected.push(
+          "only small, non-solution edits to the exercise are allowed until the student asks for the solution again",
+        );
+        continue;
+      }
+      locked++;
+      changedLocked += size;
+    } else {
+      if (changedOpen + size > FULL_MAX_CHANGED_LINES) {
+        rejected.push("edit is too large");
+        continue;
+      }
+      changedOpen += size;
     }
-    changed += size;
     edits.push({ ...e, before: removed });
   }
   return { edits, rejected };
@@ -133,7 +144,7 @@ export function describeEdits(edits: CodeEdit[]): DiffHunk[] {
 export const EDIT_CODE_TOOL = {
   name: "edit_code",
   description:
-    "Propose a change to the student's code in the editor. The student sees a diff and must press Apply, so nothing changes until they agree. Lines are numbered as in <student_code>. Replaces lines start_line..end_line (inclusive) with new_text; to insert before line N use end_line = N - 1; to delete use an empty new_text. Only use this when the student asks you to change their code, or to apply a hint. While <tutor_policy> says reveal_allowed: false you may ONLY make small edits that do not solve the exercise: a short comment pointing at the problem, a debug print, an indentation or syntax fix, a rename. Never apply the corrective change until reveal_allowed is true. Keep edits minimal and keep the student's style.",
+    'Edit the student\'s code in the editor. The change is applied immediately (the student can undo it), so say in your reply what you changed. Lines are numbered as in <student_code>. Replaces lines start_line..end_line (inclusive) with new_text; to insert before line N use end_line = N - 1; to delete use an empty new_text. Use this whenever the student asks you to change, add, fix or write code, or to apply a hint. scope "exercise" is for code that is part of the exercise they are working on: while <tutor_policy> says reveal_allowed: false you may ONLY make small edits that do not solve it (a short comment pointing at the problem, a debug print, an indentation or syntax fix, a rename), and never the corrective change. scope "other" is for any other coding the student asks for (a helper function, a different script, a language feature they want to try); it has no such limit. Keep edits minimal and keep the student\'s style.',
   input_schema: {
     type: "object" as const,
     properties: {
@@ -149,7 +160,7 @@ export const EDIT_CODE_TOOL = {
         description: "One short sentence telling the student what this change does.",
       },
     },
-    required: ["file", "start_line", "end_line", "new_text", "explanation"],
+    required: ["file", "start_line", "end_line", "new_text", "explanation", "scope"],
     additionalProperties: false,
   },
 } as const;

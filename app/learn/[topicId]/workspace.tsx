@@ -4,7 +4,12 @@ import { motion } from "framer-motion";
 import { ArrowLeft, CheckCircle2, PanelRightClose, PanelRightOpen, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { IdePanel, type IdeExercise, type IdeSnapshot } from "@/components/ide/ide-panel";
+import {
+  IdePanel,
+  type IdeExercise,
+  type IdeHandle,
+  type IdeSnapshot,
+} from "@/components/ide/ide-panel";
 import { LessonStage } from "@/components/lesson/lesson-stage";
 import { SourceProvider } from "@/components/source/source-context";
 import { GuruPanel } from "@/components/tutor/guru-panel";
@@ -14,7 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LangToggle } from "@/components/ui/lang-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LANGUAGE_LABELS } from "@/lib/ide-templates";
-import type { CodeEdit } from "@/lib/ide/edits";
 import type { Diagnostic } from "@/lib/schemas/diagnostic";
 import type { Files, Language, TestResult } from "@/lib/schemas/exercise";
 import { lessonScriptSchema, type LessonScript, type Scene } from "@/lib/schemas/lesson";
@@ -63,7 +67,7 @@ export function LearnWorkspace({
   const [codeVersion, setCodeVersion] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [askRequest, setAskRequest] = useState(0);
-  const [proposal, setProposal] = useState<CodeEdit[] | null>(null);
+  const ide = useRef<IdeHandle>(null);
   const [planUpdate, setPlanUpdate] = useState<{ version: number; summary: string | null } | null>(
     null,
   );
@@ -334,8 +338,7 @@ export function LearnWorkspace({
                 onSnapshot={onSnapshot}
                 onCheck={onCheck}
                 onAskGuru={() => setAskRequest((n) => n + 1)}
-                proposal={proposal}
-                onProposalResolved={() => setProposal(null)}
+                ref={ide}
               />
             </div>
           </motion.aside>
@@ -350,8 +353,8 @@ export function LearnWorkspace({
           askRequest={askRequest}
           onDiagnostics={setDiagnostics}
           onEdits={(edits) => {
-            setProposal(edits);
             setIdeOpen(true);
+            ide.current?.applyEdits(edits);
           }}
         />
       </div>

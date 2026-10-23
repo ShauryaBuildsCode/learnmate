@@ -27,7 +27,8 @@ export async function POST(request: Request) {
     question: message,
     context,
     policy: {
-      revealAllowed: solutionRequests >= 2,
+      // With no exercise open there is nothing to protect, so coding help is never gated.
+      revealAllowed: solutionRequests >= 2 || !context.exercise,
       solutionRequests,
       uiLang,
       task: solutionRequests >= 2 ? SECOND_ASK_TASK : undefined,

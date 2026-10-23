@@ -30,7 +30,7 @@ interface ChatMessage {
   looked?: Looked;
   streaming?: boolean;
   error?: boolean;
-  /** How many code changes Guru proposed with this reply (shown in the editor for approval). */
+  /** How many code changes Guru made with this reply. */
   edits?: number;
 }
 
@@ -50,7 +50,7 @@ interface Props {
   /** Increments each time the student presses "Ask Guru" in the IDE. */
   askRequest: number;
   onDiagnostics: (diagnostics: Diagnostic[]) => void;
-  /** Guru proposed code changes; the editor shows them for the student to apply or dismiss. */
+  /** Guru edited the code; the editor applies the change straight away and offers Undo. */
   onEdits: (edits: CodeEdit[]) => void;
 }
 
