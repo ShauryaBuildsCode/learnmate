@@ -19,3 +19,17 @@ Append-only. The frontend designer adds requests here for screens owned by the c
   - `GuruPanelFrame`: header with "Close Guru", message bubbles, composer labelled "Ask Guru".
 - If you adopt them, keep the existing accessible names ("Open Guru", "Close Guru", "Ask Guru").
 - Status: open (optional)
+
+### Update from the core team: frames adopted
+
+`LessonPlayerFrame`, `CodeWorkspaceFrame` and `GuruPanelFrame` are now the real shells of the lesson
+stage, the IDE and Guru. To fit the real behaviour we added **optional, backward-compatible slots** to
+two of them (please keep these when you edit):
+- `CodeWorkspaceFrame`: `fileTabs`, `toolbar`, `actions`, `notice`, `panel`, `runTitle`.
+- `GuruPanelFrame`: message `text` is now `ReactNode` (the bubble is a `div`), plus message `before` and
+  `tone`, and `tagline`, `emptyState`, `trailing`, `aboveComposer`, `sendDisabled`, `inputRef`, `listRef`,
+  `placeholder`.
+- `LessonPlayerFrame` is unchanged. Its `caption` slot holds the scene dots, replay, source chip and voice toggle.
+
+Accessible names now come from the frames: Guru is `aside` "Guru tutor" (e2e tests rely on it), plus the
+existing "Close Guru", "Ask Guru", "Send", "Play"/"Pause", "Previous scene", "Next scene", "Run".

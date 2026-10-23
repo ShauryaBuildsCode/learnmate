@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
+import { Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { LessonPlayerFrame } from "@/components/design/lesson-player-frame";
 import { PageChip } from "@/components/source/source-context";
 import { ProviderBadge } from "@/components/ui/provider-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -285,10 +286,84 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
   const scene = current?.scene;
   const shownFrame = started ? frame : Math.min(sceneSeconds(scene), POSTER_SECONDS) * FPS;
   const recorded = !!scene?.audio && !!urlFor(scene);
-  const voiceLabel = recorded ? "Gemini voice" : "Browser voice";
+  const totalFrames = timed.reduce((n, t) => n + t.frames, 0);
+  const progress =
+    totalFrames > 0
+      ? ((current?.from ?? 0) + Math.min(shownFrame, current?.frames ?? 0)) / totalFrames
+      : 0;
 
   return (
-    <div className="space-y-3">
+    <LessonPlayerFrame
+      title={script.title}
+      progress={progress}
+      playing={playing}
+      onPlayPause={toggle}
+      onPrevious={() => go(index - 1)}
+      onNext={() => go(index + 1)}
+      caption={
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <button
+              type="button"
+              onClick={() => go(index)}
+              aria-label="Replay scene"
+              className="rounded-lg border p-1.5 hover:bg-muted"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+            <span className="text-muted-foreground">
+              Scene {index + 1} of {timed.length}
+            </span>
+            {scene && (
+              <span className="flex items-center gap-1">
+                Source: <PageChip page={scene.page} />
+              </span>
+            )}
+            <div className="ml-auto flex items-center gap-2">
+              {recorded ? (
+                <ProviderBadge provider="gemini" note="voice" />
+              ) : (
+                <span className="text-xs text-muted-foreground">Browser voice</span>
+              )}
+              <button
+                type="button"
+                aria-pressed={voiceOn}
+                onClick={() => {
+                  const next = !voiceOn;
+                  setVoiceOn(next);
+                  voiceRef.current = next;
+                  if (audio.current) audio.current.muted = !next;
+                  if (!next) stopSpeaking();
+                }}
+                className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs hover:bg-muted"
+              >
+                {voiceOn ? (
+                  <Volume2 className="h-3.5 w-3.5" />
+                ) : (
+                  <VolumeX className="h-3.5 w-3.5" />
+                )}
+                Voice {voiceOn ? "on" : "off"}
+              </button>
+            </div>
+          </div>
+          <div role="list" className="flex gap-1" aria-label="Scenes">
+            {timed.map((t, i) => (
+              <button
+                key={i}
+                role="listitem"
+                title={`${i + 1}. ${t.scene.type} (p. ${t.scene.page})`}
+                onClick={() => go(i)}
+                className={cn(
+                  "h-2 rounded-full transition-colors",
+                  i === index ? "bg-primary" : "bg-muted hover:bg-primary/40",
+                )}
+                style={{ flex: t.frames }}
+              />
+            ))}
+          </div>
+        </div>
+      }
+    >
       <div
         ref={frameBox}
         tabIndex={0}
@@ -301,8 +376,7 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
           } else if (e.key === "ArrowRight") go(index + 1);
           else if (e.key === "ArrowLeft") go(index - 1);
         }}
-        className="relative w-full overflow-hidden rounded-2xl border bg-[#fff8f0] shadow-lg outline-none focus-visible:outline-2 focus-visible:outline-primary"
-        style={{ aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
+        className="relative h-full w-full overflow-hidden bg-[#fff8f0] outline-none focus-visible:outline-2 focus-visible:outline-primary"
       >
         <div
           style={{
@@ -339,89 +413,6 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
           </button>
         )}
       </div>
-
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <button
-          type="button"
-          onClick={() => go(index - 1)}
-          disabled={index === 0}
-          aria-label="Previous scene"
-          className="rounded-lg border p-1.5 hover:bg-muted disabled:opacity-40"
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={toggle}
-          aria-label={playing ? "Pause" : "Play"}
-          className="rounded-lg bg-primary p-1.5 text-primary-foreground"
-        >
-          {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-        </button>
-        <button
-          type="button"
-          onClick={() => go(index + 1)}
-          disabled={index >= timed.length - 1}
-          aria-label="Next scene"
-          className="rounded-lg border p-1.5 hover:bg-muted disabled:opacity-40"
-        >
-          <ChevronRight className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => go(index)}
-          aria-label="Replay scene"
-          className="rounded-lg border p-1.5 hover:bg-muted"
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-        <span className="text-muted-foreground">
-          Scene {index + 1} of {timed.length}
-        </span>
-        {scene && (
-          <span className="flex items-center gap-1">
-            Source: <PageChip page={scene.page} />
-          </span>
-        )}
-        <div className="ml-auto flex items-center gap-2">
-          {recorded ? (
-            <ProviderBadge provider="gemini" note="voice" />
-          ) : (
-            <span className="text-xs text-muted-foreground">{voiceLabel}</span>
-          )}
-          <button
-            type="button"
-            aria-pressed={voiceOn}
-            onClick={() => {
-              const next = !voiceOn;
-              setVoiceOn(next);
-              voiceRef.current = next;
-              if (audio.current) audio.current.muted = !next;
-              if (!next) stopSpeaking();
-            }}
-            className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs hover:bg-muted"
-          >
-            {voiceOn ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
-            Voice {voiceOn ? "on" : "off"}
-          </button>
-        </div>
-      </div>
-
-      <div role="list" className="flex gap-1" aria-label="Scenes">
-        {timed.map((t, i) => (
-          <button
-            key={i}
-            role="listitem"
-            title={`${i + 1}. ${t.scene.type} (p. ${t.scene.page})`}
-            onClick={() => go(i)}
-            className={cn(
-              "h-2 rounded-full transition-colors",
-              i === index ? "bg-primary" : "bg-muted hover:bg-primary/40",
-            )}
-            style={{ flex: t.frames }}
-          />
-        ))}
-      </div>
-    </div>
+    </LessonPlayerFrame>
   );
 }
