@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/auth"];
+const PUBLIC_PATHS = ["/login", "/auth", "/scenes"];
 
 /** Refreshes the Supabase session cookie and sends signed-out visitors to /login. */
 export async function proxy(request: NextRequest) {
@@ -41,5 +41,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|pyodide-worker\\.js|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

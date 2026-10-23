@@ -31,24 +31,43 @@ type WorkerReply = { id: string; ok: false; message: string } | RunReply | TestR
 let worker: Worker | null = null;
 let ready: Promise<void> | null = null;
 
+const LOAD_TIMEOUT_MS = 60_000;
+
 function spawn(): Promise<void> {
-  worker = new Worker("/pyodide-worker.js");
-  const w = worker;
-  ready = new Promise<void>((resolve) => {
+  const w = new Worker("/pyodide-worker.js");
+  worker = w;
+  const pending = new Promise<void>((resolve, reject) => {
+    const fail = () => {
+      if (worker === w) {
+        worker = null;
+        ready = null;
+      }
+      w.terminate();
+      reject(new Error("The Python runtime failed to load. Check your connection and try again."));
+    };
+    const timer = setTimeout(fail, LOAD_TIMEOUT_MS);
+    w.addEventListener("error", () => {
+      clearTimeout(timer);
+      fail();
+    });
     const onReady = (event: MessageEvent<{ id: string }>) => {
       if (event.data.id === "ready") {
+        clearTimeout(timer);
         w.removeEventListener("message", onReady);
         resolve();
       }
     };
     w.addEventListener("message", onReady);
   });
-  return ready;
+  // Callers that never await this (background preload) must not trigger unhandled rejections.
+  pending.catch(() => undefined);
+  ready = pending;
+  return pending;
 }
 
 /** Starts loading Pyodide in the background (called when the app opens). */
 export function preloadPython(): void {
-  if (typeof Worker !== "undefined" && !worker) void spawn();
+  if (typeof Worker !== "undefined" && !worker) spawn();
 }
 
 function terminateWorker() {
@@ -58,9 +77,11 @@ function terminateWorker() {
 }
 
 async function call(payload: Record<string, unknown>): Promise<WorkerReply> {
-  if (!worker) void spawn();
+  if (!worker) spawn();
   await ready;
-  const w = worker!;
+  const w = worker;
+  if (!w)
+    throw new Error("The Python runtime failed to load. Check your connection and try again.");
   const id = crypto.randomUUID();
   const reply = new Promise<WorkerReply>((resolve) => {
     const onMessage = (event: MessageEvent<WorkerReply>) => {
