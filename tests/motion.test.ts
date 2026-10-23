@@ -103,6 +103,22 @@ describe("narration cues", () => {
     expect(cueFrame("Count the lap each time round", 200, "Laps for range", 5)).toBeGreaterThan(5);
   });
 
+  it("uses measured word times when available instead of the length-based estimate", () => {
+    const sentence = "Loops repeat. Lists hold items.";
+    const estimated = cueFrame(sentence, 200, "lists", 0, 0);
+    // measured: the voice pauses a long time after the first sentence, so "Lists" is spoken much later
+    const measured = cueFrame(sentence, 200, "lists", 0, 0, Infinity, [10, 40, 150, 170, 190]);
+    expect(measured).toBe(150);
+    expect(Math.abs(measured - estimated)).toBeGreaterThan(20);
+  });
+
+  it("ignores measured times that don't match the word count", () => {
+    expect(cueFrame("one two three four", 120, "three", 0, 0, Infinity, [1, 2])).toBeCloseTo(
+      cueFrame("one two three four", 120, "three", 0, 0),
+      5,
+    );
+  });
+
   it("matches multi-word phrases, falls back to the longest word, then to the fallback", () => {
     expect(cueFrame(text, 300, "stop value", -1)).toBeGreaterThan(100);
     expect(cueFrame(text, 300, "the stop signal", -1)).toBeGreaterThan(0); // "signal" is never spoken, "stop" is

@@ -396,6 +396,8 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
               durationInFrames={current.frames}
               speechInFrames={current.speechFrames}
               narration={scene.narration}
+              wordFrames={current.wordFrames}
+              emphasis={scene.emphasis}
             >
               <SceneRenderer key={index} scene={scene} />
             </FrameProvider>

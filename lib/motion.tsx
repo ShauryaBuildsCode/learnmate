@@ -15,6 +15,10 @@ export interface MotionConfig {
   speechInFrames: number;
   /** The text being spoken, so animation beats can be timed to specific words. */
   narration: string;
+  /** Measured frame at which each word is spoken; when absent, timing is estimated from word length. */
+  wordFrames?: number[];
+  /** Words the director marked for a visual punch. */
+  emphasis?: string[];
 }
 
 const FrameContext = createContext<{ frame: number } & MotionConfig>({
@@ -186,8 +190,9 @@ export function cueFrame(
   lead = 4,
   /** Latest frame this beat may start at, so a phrase said late in the narration can't leave the stage waiting. */
   max = Infinity,
+  wordFrames?: number[],
 ): number {
-  return Math.min(max, rawCue(narration, speechInFrames, phrase, fallback, lead));
+  return Math.min(max, rawCue(narration, speechInFrames, phrase, fallback, lead, wordFrames));
 }
 
 function rawCue(
@@ -196,6 +201,7 @@ function rawCue(
   phrase: string,
   fallback: number,
   lead: number,
+  wordFrames?: number[],
 ): number {
   const words = narration.split(/\s+/).filter(Boolean);
   if (words.length === 0) return fallback;
@@ -207,7 +213,9 @@ function rawCue(
     starts.push(acc);
     acc += w;
   }
-  const spokenAt = (i: number) => 4 + (starts[i] / total) * Math.max(8, speechInFrames - 6);
+  const measured = wordFrames && wordFrames.length === words.length ? wordFrames : null;
+  const spokenAt = (i: number) =>
+    measured?.[i] ?? 4 + (starts[i] / total) * Math.max(8, speechInFrames - 6);
   const tokens = words.map(norm);
   const wanted = phrase.split(/\s+/).map(norm).filter(Boolean);
   if (wanted.length === 0) return fallback;

@@ -27,8 +27,17 @@ const base = {
   narration: z.string().min(10).max(600),
   seconds: z.number().min(4).max(40),
   page: z.number().int().positive(),
+  /** Words from this scene's narration that deserve a visual punch (camera push, caption highlight). */
+  emphasis: z.array(z.string().max(30)).max(3).optional(),
   /** Recorded narration for this scene (set by /api/narration, never by the model). */
-  audio: z.object({ path: z.string(), seconds: z.number().positive() }).optional(),
+  audio: z
+    .object({
+      path: z.string(),
+      seconds: z.number().positive(),
+      /** Start time (seconds) of each narration word, measured from the recording's pauses. */
+      words: z.array(z.number()).optional(),
+    })
+    .optional(),
 };
 
 export const traceStepSchema = z.object({
@@ -144,6 +153,8 @@ export type SceneType = Scene["type"];
 
 export const lessonScriptSchema = z.object({
   title: z.string().max(100),
+  /** Which model directed the lesson; set by the server, never by the model. */
+  directedBy: z.enum(["claude", "gemini"]).optional(),
   scenes: z.array(sceneSchema).min(3).max(16),
 });
 export type LessonScript = z.infer<typeof lessonScriptSchema>;
@@ -154,5 +165,6 @@ export type LessonScript = z.infer<typeof lessonScriptSchema>;
  */
 export const lessonEnvelopeSchema = z.object({
   title: z.string().max(200),
+  directedBy: z.enum(["claude", "gemini"]).optional(),
   scenes: z.array(z.record(z.string(), z.unknown())).min(3).max(20),
 });

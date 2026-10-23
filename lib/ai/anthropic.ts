@@ -73,9 +73,23 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
 
 /** Structured-output call (used for inline diagnostics). Returns null when Claude stops for any reason but end_turn. */
 export async function claudeStructured<T extends z.ZodType>(
-  input: Omit<ClaudeTutorInput, "effort" | "maxTokens"> & { schema: T; maxTokens?: number },
+  input: Omit<ClaudeTutorInput, "effort" | "maxTokens"> & {
+    schema: T;
+    /** Schema sent to Claude to shape its output, when the validating schema is deliberately looser. */
+    apiSchema?: z.ZodType;
+    maxTokens?: number;
+    effort?: ClaudeTutorInput["effort"] | "high";
+    /** Properties the server owns, hidden from the model's schema. */
+    omit?: string[];
+    /** Label for the usage log line. */
+    task?: string;
+  },
 ): Promise<z.infer<T> | null> {
-  const jsonSchema = toJsonSchema(input.schema);
+  const jsonSchema = toJsonSchema(input.apiSchema ?? input.schema, {
+    relaxed: true,
+    anyOf: true,
+    omit: input.omit,
+  });
   const response = await anthropic().beta.messages.create({
     model: serverEnv().ANTHROPIC_MODEL,
     max_tokens: input.maxTokens ?? 2000,
@@ -83,11 +97,14 @@ export async function claudeStructured<T extends z.ZodType>(
     fallbacks: "default",
     cache_control: { type: "ephemeral" },
     thinking: { type: "adaptive" },
-    output_config: { effort: "low", format: { type: "json_schema", schema: jsonSchema } },
+    output_config: {
+      effort: input.effort ?? "low",
+      format: { type: "json_schema", schema: jsonSchema },
+    },
     system: systemBlocks(input),
     messages: input.turns,
   });
-  logUsage("claude", "diagnose", {
+  logUsage("claude", input.task ?? "diagnose", {
     input: response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0),
     cached: response.usage.cache_read_input_tokens ?? 0,
     output: response.usage.output_tokens,
@@ -97,4 +114,50 @@ export async function claudeStructured<T extends z.ZodType>(
   if (!text || text.type !== "text") return null;
   const parsed = input.schema.safeParse(JSON.parse(text.text));
   return parsed.success ? parsed.data : null;
+}
+
+/** Pulls the JSON object out of a reply that may be wrapped in a code fence or have a stray sentence around it. */
+export function extractJson(text: string): unknown {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = (fenced ? fenced[1] : text).trim();
+  const start = body.indexOf("{");
+  const end = body.lastIndexOf("}");
+  if (start < 0 || end <= start) throw new Error("The reply contained no JSON object.");
+  return JSON.parse(body.slice(start, end + 1));
+}
+
+/**
+ * Claude returns JSON described in the prompt, without constrained decoding. For large unions (the lesson
+ * script) the constrained grammar is too big, and the caller validates the result itself anyway.
+ */
+export async function claudeJson(input: {
+  persona: string;
+  courseBlock: string;
+  prompt: string;
+  effort: "low" | "medium" | "high";
+  maxTokens: number;
+  task: string;
+}): Promise<unknown | null> {
+  const response = await anthropic().beta.messages.create({
+    model: serverEnv().ANTHROPIC_MODEL,
+    max_tokens: input.maxTokens,
+    betas: ["server-side-fallback-2026-07-01"],
+    fallbacks: "default",
+    cache_control: { type: "ephemeral" },
+    thinking: { type: "adaptive" },
+    output_config: { effort: input.effort },
+    system: systemBlocks(input),
+    messages: [{ role: "user", content: input.prompt }],
+  });
+  logUsage("claude", input.task, {
+    input: response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0),
+    cached: response.usage.cache_read_input_tokens ?? 0,
+    output: response.usage.output_tokens,
+  });
+  if (response.stop_reason !== "end_turn") return null;
+  const text = response.content
+    .filter((b) => b.type === "text")
+    .map((b) => (b.type === "text" ? b.text : ""))
+    .join("");
+  return extractJson(text);
 }

@@ -24,6 +24,13 @@ function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
   const scene = { ...raw };
   // Audio is attached by the server after recording; anything the model wrote there is made up.
   delete scene.audio;
+  if (Array.isArray(scene.emphasis)) {
+    // Keep only words that really occur in this scene's narration, so a stray word can never fire a false beat.
+    const spoken = typeof scene.narration === "string" ? scene.narration.toLowerCase() : "";
+    scene.emphasis = scene.emphasis
+      .filter((w: unknown) => typeof w === "string" && spoken.includes(w.toLowerCase()))
+      .slice(0, 3);
+  }
   if (typeof scene.narration === "string" && scene.narration.length > MAX_NARRATION) {
     scene.narration = scene.narration.slice(0, MAX_NARRATION).replace(/\s+\S*$/, "");
   }
@@ -50,7 +57,11 @@ function repairScene(raw: Record<string, unknown>): Record<string, unknown> {
  * when it doesn't match its type, cites a page that doesn't exist, or points a Checkpoint at an unknown
  * exercise. The lesson only fails if fewer than 3 good scenes remain.
  */
-export function validateScript(raw: unknown, opts: ValidateOptions): ValidatedScript {
+export function validateScript(
+  raw: unknown,
+  opts: ValidateOptions,
+  directedBy?: "claude" | "gemini",
+): ValidatedScript {
   const envelope = lessonEnvelopeSchema.parse(raw);
   const dropped: ValidatedScript["dropped"] = [];
   const scenes: Scene[] = [];
@@ -90,5 +101,5 @@ export function validateScript(raw: unknown, opts: ValidateOptions): ValidatedSc
     });
   }
   if (scenes.length < 3) throw new Error("Too few valid scenes remain after validation.");
-  return { script: { title: envelope.title, scenes }, dropped };
+  return { script: { title: envelope.title, directedBy, scenes }, dropped };
 }

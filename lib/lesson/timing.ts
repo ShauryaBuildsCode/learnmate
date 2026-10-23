@@ -30,13 +30,21 @@ export interface TimedScene {
   from: number;
   frames: number;
   speechFrames: number;
+  /** Frame at which each narration word is spoken, measured from the recording (absent for browser voice). */
+  wordFrames?: number[];
 }
 
 export function layout(scenes: Scene[]): { timed: TimedScene[]; totalFrames: number } {
   let from = 0;
   const timed = scenes.map((scene) => {
     const frames = Math.round(sceneSeconds(scene) * FPS);
-    const entry = { scene, from, frames, speechFrames: Math.round(speechSeconds(scene) * FPS) };
+    const entry = {
+      scene,
+      from,
+      frames,
+      speechFrames: Math.round(speechSeconds(scene) * FPS),
+      wordFrames: scene.audio?.words?.map((t) => t * FPS),
+    };
     from += frames;
     return entry;
   });

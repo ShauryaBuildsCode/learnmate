@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { claudeJson } from "@/lib/ai/anthropic";
 import { geminiJson } from "@/lib/ai/gemini";
+import { MOTION_DIRECTOR_SYSTEM, motionDirectorPrompt } from "@/lib/ai/prompts/motion-director";
+import { courseBlock } from "@/lib/ai/prompts/tutor";
 import { CONTENT_SYSTEM, lessonPrompt, pagesBlock } from "@/lib/ai/prompts/content";
 import { lessonEnvelopeSchema, lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
 import type { Database, Json } from "@/lib/supabase/types";
@@ -52,27 +55,57 @@ export async function getOrCreateLesson(
   const exercises = (courseExercises ?? []).filter((e) => e.topic_id === topicId);
   const relevant = new Set([...topic.pages, ...exercises.map((e) => e.page)]);
 
-  const raw = await geminiJson({
-    task: "lesson script",
-    system: CONTENT_SYSTEM,
-    // Always the whole course, in the same order, so the cached prefix is shared by every task.
-    context: pagesBlock(pages),
-    prompt: lessonPrompt({
-      topic,
-      validPages: [...relevant].sort((a, b) => a - b),
-      exercises,
-      allowTrace: (courseExercises ?? []).some((e) => e.language === "python"),
-      uiLang,
-    }),
-    schema: lessonEnvelopeSchema,
-    apiSchema: lessonScriptSchema,
-  });
-
-  const { script, dropped } = validateScript(raw, {
+  const { data: course } = await supabase
+    .from("courses")
+    .select("title")
+    .eq("id", topic.course_id)
+    .maybeSingle();
+  const validPages = [...relevant].sort((a, b) => a - b);
+  const allowTrace = (courseExercises ?? []).some((e) => e.language === "python");
+  const validation = {
     validPages: new Set(pages.map((p) => p.page_no)),
     exerciseIds: exercises.map((e) => e.id),
     exercisePrompts: Object.fromEntries(exercises.map((e) => [e.id, e.prompt])),
-  });
+  };
+
+  /** Claude directs the motion. */
+  const withClaude = async () => {
+    const raw = await claudeJson({
+      persona: MOTION_DIRECTOR_SYSTEM,
+      courseBlock: courseBlock(course?.title ?? "Course", pages),
+      prompt: motionDirectorPrompt({ topic, validPages, exercises, allowTrace, uiLang }),
+      effort: "medium",
+      maxTokens: 9000,
+      task: "motion director",
+    });
+    return raw ? validateScript(raw, validation, "claude") : null;
+  };
+
+  /** Gemini writes the script if Claude is unavailable or its script doesn't validate. */
+  const withGemini = async () => {
+    const raw = await geminiJson({
+      task: "lesson script",
+      system: CONTENT_SYSTEM,
+      // Always the whole course, in the same order, so the cached prefix is shared by every task.
+      context: pagesBlock(pages),
+      prompt: lessonPrompt({ topic, validPages, exercises, allowTrace, uiLang }),
+      schema: lessonEnvelopeSchema,
+      apiSchema: lessonScriptSchema,
+    });
+    return validateScript(raw, validation, "gemini");
+  };
+
+  let result: ReturnType<typeof validateScript> | null = null;
+  try {
+    result = await withClaude();
+  } catch (error) {
+    console.error(
+      "[lesson] Claude motion director failed, falling back to Gemini:",
+      error instanceof Error ? error.message : error,
+    );
+  }
+  result ??= await withGemini();
+  const { script, dropped } = result;
 
   await supabase
     .from("lessons")

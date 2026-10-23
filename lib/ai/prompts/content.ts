@@ -1,4 +1,5 @@
 import { INJECTION_RULE, fence } from "./fence";
+import { sceneLibrarySpec } from "./scenes";
 
 export const CONTENT_SYSTEM = `You are the content engine of LearnMate, an app that turns study material into lessons, exercises and quizzes for students.
 Rules that apply to everything you write:
@@ -48,25 +49,11 @@ export function lessonPrompt(args: {
   allowTrace: boolean;
   uiLang: "en" | "hi";
 }): string {
-  const ex = args.exercises.length
-    ? args.exercises.map((e) => `- id "${e.id}" (${e.language}): ${e.prompt}`).join("\n")
-    : "(no exercises)";
   return `Topic: ${args.topic.name}. ${args.topic.summary}
 Valid source pages: ${args.validPages.join(", ")} (the other pages are context only; draw scenes from the valid pages)
 
-Write an animated lesson script for this topic as JSON: {"title": string, "scenes": [...]}. 7 to 10 scenes, using ONLY these scene types. Every scene needs "type", "narration" (1 to 3 spoken sentences), "seconds" (6 to 14) and "page" (one of the valid source pages where the scene's content comes from). The scenes are motion graphics: pick the ones that make THIS topic visual and varied rather than repeating one type.
-- TitleCard: {title, hook}. Always first.
-- KeyTerms: {terms[3-8]: {label (a word or two, at most 18 characters), icon}} the topic's vocabulary, shown as icon tiles that become big bold words. Good as the second scene.
-- Bento: {cards[3-5]: {title, body (short), stat {value: number, prefix?, suffix?} (optional), tone light|dark|accent, icon}} an at-a-glance overview of the topic's parts, one number in a stat card where a real number from the material fits.
-- Analogy: {icon, concept, realLife, bullets[2-4]} an everyday comparison.
-- RepeatBurst: {label, count 10-1000, icon} "write it once, run it N times" - use ONLY for repetition and loops.
-- CodeReveal: {code, language, highlightLines[], caption} code adapted from the material, at most 8 lines.
-- ArrayViz: {name, items[2-8] short strings of at most 8 characters, mode iterate|index|append, focusIndex (index mode: use a negative number to show counting from the end), appendValue (append mode)} for lists and arrays: iterate shows a loop walking the list, index shows positions, append shows a list growing. Use ONLY when the topic involves lists or arrays.
-- ${args.allowTrace ? "VariableTracker: {code} short Python (at most 6 lines, no input(), no imports) whose variables change step by step. Do NOT write the steps; they are computed by running the code." : "Do NOT use VariableTracker (the course is not in Python)."}
-- FlowDiagram: {variant loop|branch, labels{start, init, condition, body, update, alternative, exit}} labels are very short phrases. Use for loops and decisions.
-- Checkpoint: {exerciseId, prompt} exactly one, last, using one of these exercise ids:
-${ex}
-icon is one of repeat|package|list|key|map|clock|ticket|building|music|shopping-cart|code|bug|rocket|lightbulb|puzzle|layers|target|zap|book.
+Write an animated lesson script for this topic as JSON: {"title": string, "scenes": [...]}. 7 to 10 scenes. The scenes are motion graphics timed to a recorded voice, so write the narration to speak every on-screen label in the order it appears, in the exact words. Pick the scene whose motion best shows each idea; do not repeat one type back to back.
+${sceneLibrarySpec(args)}
 Teach the idea with an analogy first, then code, then the trace or flowchart, then the checkpoint. Explain in simple ${args.uiLang === "hi" ? "Hindi (Devanagari script; keep code and identifiers in English)" : "English"}.`;
 }
 

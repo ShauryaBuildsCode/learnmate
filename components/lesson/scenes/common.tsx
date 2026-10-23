@@ -1,30 +1,43 @@
-import { AbsoluteFill, Easing, interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
+import {
+  AbsoluteFill,
+  Easing,
+  interpolate,
+  useCue,
+  useCurrentFrame,
+  useVideoConfig,
+} from "@/lib/motion";
 import type { ReactNode } from "react";
 import { FONT, ICON_NAMES, IconTile, PALETTE, seeded, TONE_CYCLE } from "./kit";
 
 export { FONT, MONO, PALETTE } from "./kit";
 
 const CAPTION_WORDS = 18;
+const plain = (w: string) => w.toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
 
 /**
  * Karaoke-style captions that follow the voice: a word lights up when the narration has spoken that
  * share of its characters (long words take longer), across the scene's real speech length.
  */
-function Captions({ narration }: { narration: string }) {
+function Captions({ narration, emphasis }: { narration: string; emphasis: Set<string> }) {
   const frame = useCurrentFrame();
-  const { speechInFrames } = useVideoConfig();
+  const { speechInFrames, wordFrames } = useVideoConfig();
   const words = narration.split(/\s+/).filter(Boolean);
-  const weights = words.map((w) => w.length + 2);
-  const total = weights.reduce((a, b) => a + b, 0);
-  const spoken = interpolate(frame, [4, Math.max(8, speechInFrames - 2)], [0, total], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-  let acc = 0;
   let current = 0;
-  for (let i = 0; i < words.length; i++) {
-    acc += weights[i];
-    if (spoken >= acc - weights[i] * 0.5) current = i;
+  if (wordFrames && wordFrames.length === words.length) {
+    // measured: the word is lit from the frame it is actually spoken
+    for (let i = 0; i < words.length; i++) if (frame >= wordFrames[i] - 1) current = i;
+  } else {
+    const weights = words.map((w) => w.length + 2);
+    const total = weights.reduce((a, b) => a + b, 0);
+    const spoken = interpolate(frame, [4, Math.max(8, speechInFrames - 2)], [0, total], {
+      extrapolateLeft: "clamp",
+      extrapolateRight: "clamp",
+    });
+    let acc = 0;
+    for (let i = 0; i < words.length; i++) {
+      acc += weights[i];
+      if (spoken >= acc - weights[i] * 0.5) current = i;
+    }
   }
   const start = Math.floor(current / CAPTION_WORDS) * CAPTION_WORDS;
   return (
@@ -114,7 +127,15 @@ export function SceneFrame({
   children: ReactNode;
 }) {
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
+  const { durationInFrames, emphasis } = useVideoConfig();
+  const cue = useCue();
+  const emphasised = new Set((emphasis ?? []).flatMap((p) => p.split(/\s+/)).map(plain));
+  // Each emphasis word gives the camera a short push at the moment it is spoken.
+  const punch = (emphasis ?? []).reduce((sum, phrase) => {
+    const at = cue(phrase, -100, 2);
+    const u = (frame - at) / 16;
+    return at >= 0 && u >= 0 && u <= 1 ? sum + Math.sin(u * Math.PI) * 0.032 : sum;
+  }, 0);
   const t = Math.min(1, Math.max(0, frame / durationInFrames));
 
   // Camera: a barely-there push-in over the whole scene, so nothing is ever perfectly still.
@@ -132,7 +153,7 @@ export function SceneFrame({
     extrapolateRight: "clamp",
     easing: Easing.expoOut,
   });
-  const contentScale = push * (1 + (1 - enter) * 0.045) * (1 - exit * 0.035);
+  const contentScale = push * (1 + (1 - enter) * 0.045) * (1 - exit * 0.035) * (1 + punch);
 
   return (
     <AbsoluteFill
@@ -187,7 +208,7 @@ export function SceneFrame({
       >
         {children}
       </AbsoluteFill>
-      <Captions narration={narration} />
+      <Captions narration={narration} emphasis={emphasised} />
       {/* stripe transition: sweeps in over the last frames, and back out over the first */}
       <AbsoluteFill style={{ pointerEvents: "none", overflow: "hidden" }}>
         {STRIPES.map((color, i) => {

@@ -260,7 +260,12 @@ export function LearnWorkspace({
             {lesson.status === "ready" && (
               <>
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <ProviderBadge provider="gemini" note="lesson script" />
+                  <ProviderBadge
+                    provider={lesson.script.directedBy === "claude" ? "claude" : "gemini"}
+                    note={
+                      lesson.script.directedBy === "gemini" ? "lesson script" : "motion director"
+                    }
+                  />
                   <span>{lesson.script.title}</span>
                 </div>
                 <LessonStage
