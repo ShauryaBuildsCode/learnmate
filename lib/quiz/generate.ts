@@ -1,5 +1,5 @@
 import { geminiJson } from "@/lib/ai/gemini";
-import { CONTENT_SYSTEM, quizPrompt } from "@/lib/ai/prompts/content";
+import { CONTENT_SYSTEM, pagesBlock, quizPrompt } from "@/lib/ai/prompts/content";
 import { AiOutputError } from "@/lib/ai/types";
 import { verifyQuote } from "@/lib/grounding";
 import { quizSchema, type QuizQuestion } from "@/lib/schemas/content";
@@ -85,8 +85,8 @@ export async function generateVerifiedQuestions(args: Args): Promise<QuizQuestio
     const result = await geminiJson({
       task: "quiz",
       system: CONTENT_SYSTEM,
+      context: pagesBlock(args.pages),
       prompt: quizPrompt({
-        pages: args.pages,
         topics: focus,
         count: needed,
         avoid,

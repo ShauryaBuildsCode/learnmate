@@ -1,0 +1,1 @@
+{"text":"You were right—using “for name in names:” automatically iterates each item without needing indexes. Ask Guru if you'd like more.","correct":true,"provider":"groq"}

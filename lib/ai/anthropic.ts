@@ -3,6 +3,7 @@ import type { z } from "zod";
 import { serverEnv } from "@/lib/env";
 import { toJsonSchema } from "@/lib/schemas/json-schema";
 import type { TutorTurn } from "./types";
+import { logUsage } from "./usage";
 
 let client: Anthropic | undefined;
 function anthropic() {
@@ -48,6 +49,8 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
     max_tokens: input.maxTokens,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
+    // Top-level cache control also caches the conversation so far, so later turns reuse earlier ones.
+    cache_control: { type: "ephemeral" },
     thinking: { type: "adaptive" },
     output_config: { effort: input.effort },
     system: systemBlocks(input),
@@ -59,6 +62,11 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
     }
   }
   const final = await stream.finalMessage();
+  logUsage("claude", "tutor", {
+    input: final.usage.input_tokens + (final.usage.cache_creation_input_tokens ?? 0),
+    cached: final.usage.cache_read_input_tokens ?? 0,
+    output: final.usage.output_tokens,
+  });
   if (final.stop_reason === "refusal")
     throw new ClaudeRefusalError(final.stop_details?.category ?? null);
 }
@@ -73,10 +81,16 @@ export async function claudeStructured<T extends z.ZodType>(
     max_tokens: input.maxTokens ?? 2000,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",
+    cache_control: { type: "ephemeral" },
     thinking: { type: "adaptive" },
     output_config: { effort: "low", format: { type: "json_schema", schema: jsonSchema } },
     system: systemBlocks(input),
     messages: input.turns,
+  });
+  logUsage("claude", "diagnose", {
+    input: response.usage.input_tokens + (response.usage.cache_creation_input_tokens ?? 0),
+    cached: response.usage.cache_read_input_tokens ?? 0,
+    output: response.usage.output_tokens,
   });
   if (response.stop_reason !== "end_turn") return null;
   const text = response.content.find((b) => b.type === "text");
