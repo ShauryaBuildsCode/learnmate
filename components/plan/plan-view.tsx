@@ -31,7 +31,18 @@ export function LevelChip({ level, score }: { level: MasteryLevel; score?: numbe
   );
 }
 
-export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "hi" }) {
+export function PlanView({
+  plan,
+  uiLang,
+  limit,
+  moreHref,
+}: {
+  plan: StoredPlan;
+  uiLang: "en" | "hi";
+  /** Show only the first few topics, with a link to the rest. */
+  limit?: number;
+  moreHref?: string;
+}) {
   const summary = plan.items
     .map((i, n) => `${n + 1}. ${i.topicName}. ${i.why} ${i.nextStep}`)
     .join(" ");
@@ -69,7 +80,7 @@ export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "h
       )}
 
       <ol className="space-y-3">
-        {plan.items.map((item, i) => {
+        {(limit ? plan.items.slice(0, limit) : plan.items).map((item, i) => {
           const done = item.exercises.filter((e) => e.passed).length;
           return (
             <li key={item.topicId}>
@@ -102,6 +113,14 @@ export function PlanView({ plan, uiLang }: { plan: StoredPlan; uiLang: "en" | "h
           );
         })}
       </ol>
+      {limit && moreHref && plan.items.length > limit && (
+        <Link
+          href={moreHref}
+          className="inline-block text-sm font-medium underline underline-offset-2"
+        >
+          See all {plan.items.length} topics in the plan
+        </Link>
+      )}
     </section>
   );
 }

@@ -16,14 +16,52 @@ import { SiteHeader } from "@/components/ui/site-header";
 import { createClient } from "@/lib/supabase/server";
 import { loadOverview, type CourseSummary } from "@/lib/study/overview";
 
-function Tile({ label, value, hint }: { label: string; value: string; hint?: string }) {
+function Tile({
+  label,
+  value,
+  hint,
+  children,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  children?: React.ReactNode;
+}) {
   return (
     <Card className="space-y-0.5 p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="text-2xl font-semibold tracking-tight">{value}</p>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {children}
     </Card>
   );
+}
+
+/** The last seven days as tiny bars, so a streak is something you can see. */
+function WeekBars({ days }: { days: { date: string; count: number }[] }) {
+  const max = Math.max(1, ...days.map((d) => d.count));
+  return (
+    <div
+      className="flex h-6 items-end gap-1 pt-1"
+      role="img"
+      aria-label="Activity over the last 7 days"
+    >
+      {days.map((d) => (
+        <span
+          key={d.date}
+          title={`${d.date}: ${d.count}`}
+          className={d.count ? "flex-1 rounded-sm bg-foreground/70" : "flex-1 rounded-sm bg-muted"}
+          style={{ height: `${d.count ? 25 + (d.count / max) * 75 : 14}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function greeting(name: string | null | undefined): string {
+  const h = new Date().getHours();
+  const part = h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+  return name ? `${part}, ${name}` : part;
 }
 
 function CourseCard({ c }: { c: CourseSummary }) {
@@ -76,7 +114,25 @@ function CourseCard({ c }: { c: CourseSummary }) {
         )}
       </div>
 
-      <ul className="mt-auto grid grid-cols-2 gap-1.5">
+      {c.next ? (
+        <Link
+          href={`/learn/${c.next.topicId}`}
+          className="flex items-center justify-between gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium"
+        >
+          <span className="min-w-0 truncate">Continue: {c.next.topicName}</span>
+          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+        </Link>
+      ) : (
+        <Link
+          href={`/course/${c.id}/quizzes`}
+          className="flex items-center justify-between gap-2 rounded-lg bg-accent px-3 py-2 text-sm font-medium"
+        >
+          Take the diagnostic quiz
+          <ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+        </Link>
+      )}
+
+      <ul className="grid grid-cols-2 gap-1.5">
         {links.map(({ href, label, Icon }) => (
           <li key={href}>
             <Link
@@ -94,8 +150,17 @@ function CourseCard({ c }: { c: CourseSummary }) {
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const o = await loadOverview(supabase);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [o, { data: profile }] = await Promise.all([
+    loadOverview(supabase),
+    user
+      ? supabase.from("profiles").select("display_name").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
   const next = o.courses.find((c) => c.next);
+  const first = profile?.display_name?.split(/\s+/)[0];
 
   return (
     <>
@@ -103,9 +168,11 @@ export default async function DashboardPage() {
       <main className="mx-auto grid w-full max-w-5xl flex-1 gap-8 px-4 py-8 sm:px-6 sm:py-10 lg:grid-cols-[1fr_340px]">
         <section className="min-w-0 space-y-6">
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{greeting(first)}</h1>
             <p className="text-sm text-muted-foreground">
-              Pick up where you left off, or start something new.
+              {o.courses.length === 0
+                ? "Let's build your first course."
+                : "Pick up where you left off, or start something new."}
             </p>
           </div>
 
@@ -116,7 +183,9 @@ export default async function DashboardPage() {
                 label="Day streak"
                 value={String(o.streak.current)}
                 hint={o.streak.current > 0 ? "Keep it going" : "Study today to start one"}
-              />
+              >
+                <WeekBars days={o.activity.slice(-7)} />
+              </Tile>
               <Tile
                 label="Avg quiz score"
                 value={o.totals.avgScore === null ? "–" : `${o.totals.avgScore}%`}
@@ -126,7 +195,7 @@ export default async function DashboardPage() {
           )}
 
           {next?.next && (
-            <Card className="flex flex-wrap items-center gap-4 border-primary/20 bg-accent">
+            <Card className="flex flex-col gap-4 border-primary/20 bg-accent sm:flex-row sm:items-center">
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                 <Flame className="h-5 w-5" aria-hidden="true" />
               </span>
@@ -141,7 +210,7 @@ export default async function DashboardPage() {
               </div>
               <Link
                 href={`/learn/${next.next.topicId}`}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground"
+                className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground"
               >
                 Start <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
@@ -149,14 +218,30 @@ export default async function DashboardPage() {
           )}
 
           {o.courses.length === 0 ? (
-            <Card className="flex flex-col items-center gap-3 border-dashed px-6 py-14 text-center shadow-none">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent">
-                <BookOpen className="h-5 w-5" aria-hidden="true" />
-              </span>
-              <h2 className="font-medium">No courses yet</h2>
-              <p className="max-w-sm text-sm text-muted-foreground">
-                Nothing here yet. Add a chapter and LearnMate will build your first course.
-              </p>
+            <Card className="space-y-5 border-dashed px-6 py-10 shadow-none">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent">
+                  <BookOpen className="h-5 w-5" aria-hidden="true" />
+                </span>
+                <h2 className="font-medium">No courses yet</h2>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  Add a chapter and LearnMate will build your first course.
+                </p>
+              </div>
+              <ol className="mx-auto grid max-w-md gap-2 text-sm">
+                {[
+                  "Upload a PDF or paste your notes",
+                  "Take a short quiz to find your weak spots",
+                  "Learn from animated lessons and practise in the editor",
+                ].map((step, i) => (
+                  <li key={step} className="flex items-center gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent text-xs font-semibold">
+                      {i + 1}
+                    </span>
+                    {step}
+                  </li>
+                ))}
+              </ol>
             </Card>
           ) : (
             <div className="space-y-3">

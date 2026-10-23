@@ -145,3 +145,14 @@ describe("analytics", () => {
     expect(weakestTopics(attempts)[0]).toMatchObject({ topicId: "b", pct: 25 });
   });
 });
+
+import { cleanSentence } from "@/lib/plan/clean";
+describe("cleanSentence", () => {
+  it("unwraps JSON and code fences and leaves plain sentences alone", () => {
+    expect(
+      cleanSentence('```json\n{ "banner_text": "Loops improved; next focus is Lists." }\n```'),
+    ).toBe("Loops improved; next focus is Lists.");
+    expect(cleanSentence('"Loops improved."')).toBe("Loops improved.");
+    expect(cleanSentence("Loops improved.  Next: lists.")).toBe("Loops improved. Next: lists.");
+  });
+});
