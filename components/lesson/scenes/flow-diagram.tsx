@@ -1,4 +1,4 @@
-import { interpolate, useCurrentFrame, useVideoConfig } from "remotion";
+import { interpolate, useCurrentFrame, useVideoConfig } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { FONT, PALETTE, SceneFrame } from "./common";
 

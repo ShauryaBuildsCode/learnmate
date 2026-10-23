@@ -7,6 +7,7 @@ const serverSchema = z.object({
   GEMINI_FALLBACK_MODEL: z.string().min(1).default("gemini-3.5-flash-lite"),
   ANTHROPIC_API_KEY: z.string().min(1),
   ANTHROPIC_MODEL: z.string().min(1).default("claude-opus-5-5"),
+  GEMINI_TTS_MODEL: z.string().min(1).default("gemini-3.8-flash-tts"),
   GROQ_API_KEY: z.string().min(1),
   GROQ_MODEL: z.string().min(1).default("openai/gpt-oss-20b"),
   ONLINECOMPILER_API_KEY: z.string().min(1),

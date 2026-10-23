@@ -1,4 +1,4 @@
-import { useCurrentFrame } from "remotion";
+import { useCurrentFrame } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { IconTile, lerp, seeded, TONE_CYCLE, useEnter } from "./kit";

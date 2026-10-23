@@ -37,7 +37,9 @@ export function UploadCard() {
     setError(null);
     if (next && next.size > MAX_PDF_BYTES) {
       setFile(null);
-      setError(`That PDF is ${(next.size / 1024 / 1024).toFixed(1)} MB. Please pick one up to ${MAX_PDF_BYTES / 1024 / 1024} MB.`);
+      setError(
+        `That PDF is ${(next.size / 1024 / 1024).toFixed(1)} MB. Please pick one up to ${MAX_PDF_BYTES / 1024 / 1024} MB.`,
+      );
       return;
     }
     setFile(next);
@@ -56,7 +58,9 @@ export function UploadCard() {
         } = await supabase.auth.getUser();
         if (!user) throw new Error("Please sign in again.");
         const storagePath = `${user.id}/${crypto.randomUUID()}.pdf`;
-        const { error: uploadError } = await supabase.storage.from("materials").upload(storagePath, file, { contentType: "application/pdf" });
+        const { error: uploadError } = await supabase.storage
+          .from("materials")
+          .upload(storagePath, file, { contentType: "application/pdf" });
         if (uploadError) throw new Error("The upload failed. Check your connection and try again.");
         body = { kind: "pdf", storagePath };
       } else {
@@ -106,7 +110,10 @@ export function UploadCard() {
             aria-selected={mode === m}
             disabled={busy}
             onClick={() => setMode(m)}
-            className={cn("flex-1 rounded-md px-3 py-1.5", mode === m ? "bg-card font-medium shadow-sm" : "text-muted-foreground")}
+            className={cn(
+              "flex-1 rounded-md px-3 py-1.5",
+              mode === m ? "bg-card font-medium shadow-sm" : "text-muted-foreground",
+            )}
           >
             {m === "pdf" ? "Upload PDF" : "Paste text"}
           </button>
@@ -127,7 +134,13 @@ export function UploadCard() {
         >
           {file ? <FileText className="h-6 w-6" /> : <Upload className="h-6 w-6" />}
           {file ? file.name : "Drop a PDF here or click to choose"}
-          <input ref={fileInput} type="file" accept="application/pdf" hidden onChange={(e) => pick(e.target.files?.[0] ?? null)} />
+          <input
+            ref={fileInput}
+            type="file"
+            accept="application/pdf"
+            hidden
+            onChange={(e) => pick(e.target.files?.[0] ?? null)}
+          />
         </button>
       ) : (
         <textarea
@@ -144,8 +157,17 @@ export function UploadCard() {
       {busy && (
         <ol className="space-y-1.5 text-sm" aria-live="polite">
           {STAGES.map((s, i) => (
-            <li key={s.id} className={cn("flex items-center gap-2", i > (stage ?? 0) && "text-muted-foreground")}>
-              {i < (stage ?? 0) ? <CheckCircle2 className="h-4 w-4 text-success" /> : i === stage ? <Loader2 className="h-4 w-4 animate-spin" /> : <span className="h-4 w-4" />}
+            <li
+              key={s.id}
+              className={cn("flex items-center gap-2", i > (stage ?? 0) && "text-muted-foreground")}
+            >
+              {i < (stage ?? 0) ? (
+                <CheckCircle2 className="h-4 w-4 text-success" />
+              ) : i === stage ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <span className="h-4 w-4" />
+              )}
               {s.label}
             </li>
           ))}

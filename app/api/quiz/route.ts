@@ -34,8 +34,12 @@ export async function POST(request: Request) {
   let count = Math.min(8, Math.max(6, topics.length));
   if (kind === "practice") {
     if (snapshot.attempts.length === 0) return jsonError(400, "Take the diagnostic quiz first.");
-    const weak = snapshot.mastery.filter((m) => m.level !== "strong").sort((a, b) => a.score - b.score).slice(0, 3);
-    if (weak.length === 0) return jsonError(400, "Every topic is strong. Nothing to practise right now.");
+    const weak = snapshot.mastery
+      .filter((m) => m.level !== "strong")
+      .sort((a, b) => a.score - b.score)
+      .slice(0, 3);
+    if (weak.length === 0)
+      return jsonError(400, "Every topic is strong. Nothing to practise right now.");
     topics = snapshot.topics.filter((t) => weak.some((w) => w.topicId === t.id));
     count = Math.min(6, topics.length * 2);
   }
@@ -69,9 +73,14 @@ export async function POST(request: Request) {
       options: q.options,
       page: q.page,
     }));
-    return NextResponse.json({ attemptId: attempt.id, questions: publicQuestions, provider: "gemini" });
+    return NextResponse.json({
+      attemptId: attempt.id,
+      questions: publicQuestions,
+      provider: "gemini",
+    });
   } catch (error) {
-    if (error instanceof AiOutputError) return jsonError(502, "The AI's quiz wasn't usable. Please try again.");
+    if (error instanceof AiOutputError)
+      return jsonError(502, "The AI's quiz wasn't usable. Please try again.");
     return jsonError(502, "Couldn't build the quiz right now. Please try again.");
   }
 }

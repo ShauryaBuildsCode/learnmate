@@ -22,7 +22,12 @@ type Phase =
   | { name: "answering"; attemptId: string; questions: PublicQuestion[] }
   | { name: "submitting" }
   | { name: "planning" }
-  | { name: "done"; results: QuestionResult[]; questions: PublicQuestion[]; planVersion: number | null }
+  | {
+      name: "done";
+      results: QuestionResult[];
+      questions: PublicQuestion[];
+      planVersion: number | null;
+    }
   | { name: "error"; message: string; retry: "start" | "finish" };
 
 interface Props {
@@ -35,7 +40,11 @@ interface Props {
 }
 
 async function post<T>(url: string, body: unknown): Promise<T> {
-  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
   const data = (await res.json().catch(() => ({}))) as T & { error?: string };
   if (!res.ok) throw new Error(data.error ?? "Something went wrong. Please try again.");
   return data;
@@ -45,7 +54,9 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
   const [phase, setPhase] = useState<Phase>({ name: "idle" });
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<number[]>([]);
-  const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | "loading" | null>(null);
+  const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | "loading" | null>(
+    null,
+  );
 
   async function start() {
     setPhase({ name: "generating" });
@@ -53,10 +64,18 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
     setAnswers([]);
     setFeedback(null);
     try {
-      const data = await post<{ attemptId: string; questions: PublicQuestion[] }>("/api/quiz", { courseId, kind, uiLang });
+      const data = await post<{ attemptId: string; questions: PublicQuestion[] }>("/api/quiz", {
+        courseId,
+        kind,
+        uiLang,
+      });
       setPhase({ name: "answering", attemptId: data.attemptId, questions: data.questions });
     } catch (e) {
-      setPhase({ name: "error", message: e instanceof Error ? e.message : "Couldn't build the quiz.", retry: "start" });
+      setPhase({
+        name: "error",
+        message: e instanceof Error ? e.message : "Couldn't build the quiz.",
+        retry: "start",
+      });
     }
   }
 
@@ -80,19 +99,37 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
   async function finish(attemptId: string, questions: PublicQuestion[], final: number[]) {
     setPhase({ name: "submitting" });
     try {
-      const scored = await post<{ results: QuestionResult[] }>("/api/quiz/submit", { attemptId, answers: final });
+      const scored = await post<{ results: QuestionResult[] }>("/api/quiz/submit", {
+        attemptId,
+        answers: final,
+      });
       setPhase({ name: "planning" });
-      const plan = await post<{ plan: { version: number } }>("/api/plan", { courseId, basedOn: `quiz:${attemptId}`, uiLang });
-      setPhase({ name: "done", results: scored.results, questions, planVersion: plan.plan.version });
+      const plan = await post<{ plan: { version: number } }>("/api/plan", {
+        courseId,
+        basedOn: `quiz:${attemptId}`,
+        uiLang,
+      });
+      setPhase({
+        name: "done",
+        results: scored.results,
+        questions,
+        planVersion: plan.plan.version,
+      });
       onFinished();
     } catch (e) {
-      setPhase({ name: "error", message: e instanceof Error ? e.message : "Couldn't finish the quiz.", retry: "finish" });
+      setPhase({
+        name: "error",
+        message: e instanceof Error ? e.message : "Couldn't finish the quiz.",
+        retry: "finish",
+      });
     }
   }
 
   if (phase.name === "idle") {
     return (
-      <Button onClick={start}>{kind === "diagnostic" ? "Start diagnostic quiz" : "Practice weak topics"}</Button>
+      <Button onClick={start}>
+        {kind === "diagnostic" ? "Start diagnostic quiz" : "Practice weak topics"}
+      </Button>
     );
   }
   if (phase.name === "generating") {
@@ -108,7 +145,10 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
     return (
       <Card role="alert" className="space-y-3 border-danger/40 text-sm">
         <p>{phase.message}</p>
-        <Button size="sm" onClick={phase.retry === "start" ? start : () => setPhase({ name: "idle" })}>
+        <Button
+          size="sm"
+          onClick={phase.retry === "start" ? start : () => setPhase({ name: "idle" })}
+        >
           <RefreshCw className="h-4 w-4" /> Try again
         </Button>
       </Card>
@@ -131,7 +171,9 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
             You got {correct} of {phase.results.length}
           </h3>
           {phase.planVersion !== null && (
-            <p className="text-sm text-muted-foreground">Your revision plan is now version {phase.planVersion}.</p>
+            <p className="text-sm text-muted-foreground">
+              Your revision plan is now version {phase.planVersion}.
+            </p>
           )}
         </div>
         <ul className="space-y-3">
@@ -140,7 +182,11 @@ export function QuizRunner({ courseId, kind, uiLang, topicNames, onFinished }: P
             return (
               <li key={r.questionId} className="space-y-1 text-sm">
                 <div className="flex items-start gap-2">
-                  {r.correct ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" /> : <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />}
+                  {r.correct ? (
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                  ) : (
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-danger" />
+                  )}
                   <div>
                     <p className="font-medium">{q.question}</p>
                     <p className="text-muted-foreground">

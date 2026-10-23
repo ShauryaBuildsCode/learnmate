@@ -2,7 +2,13 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { authorize, isResponse, jsonError } from "@/lib/api";
 import { groqQuick } from "@/lib/ai/groq";
-import { ASSIST_SYSTEM, errorPrompt, quizFeedbackPrompt, tipPrompt, withInvitation } from "@/lib/ai/prompts/assist";
+import {
+  ASSIST_SYSTEM,
+  errorPrompt,
+  quizFeedbackPrompt,
+  tipPrompt,
+  withInvitation,
+} from "@/lib/ai/prompts/assist";
 import { quizQuestionSchema } from "@/lib/schemas/content";
 import { languageSchema } from "@/lib/schemas/exercise";
 
@@ -13,7 +19,11 @@ const bodySchema = z.discriminatedUnion("kind", [
     code: z.string().min(1).max(4000),
     exercise: z.string().max(1000).nullable(),
   }),
-  z.object({ kind: z.literal("error"), language: languageSchema, stderr: z.string().min(1).max(3000) }),
+  z.object({
+    kind: z.literal("error"),
+    language: languageSchema,
+    stderr: z.string().min(1).max(3000),
+  }),
   z.object({
     kind: z.literal("quiz_feedback"),
     attemptId: z.string().uuid(),
@@ -32,7 +42,10 @@ export async function POST(request: Request) {
 
   try {
     if (body.kind === "tip") {
-      const text = await groqQuick(ASSIST_SYSTEM, tipPrompt(body.language, body.code, body.exercise));
+      const text = await groqQuick(
+        ASSIST_SYSTEM,
+        tipPrompt(body.language, body.code, body.exercise),
+      );
       return NextResponse.json({ text: withInvitation(text), provider: "groq" });
     }
     if (body.kind === "error") {

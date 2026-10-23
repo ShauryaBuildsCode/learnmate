@@ -27,6 +27,8 @@ const base = {
   narration: z.string().min(10).max(600),
   seconds: z.number().min(4).max(40),
   page: z.number().int().positive(),
+  /** Recorded narration for this scene (set by /api/narration, never by the model). */
+  audio: z.object({ path: z.string(), seconds: z.number().positive() }).optional(),
 };
 
 export const traceStepSchema = z.object({

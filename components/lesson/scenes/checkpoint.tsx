@@ -1,4 +1,4 @@
-import { interpolate, useCurrentFrame } from "remotion";
+import { interpolate, useCurrentFrame } from "@/lib/motion";
 import type { Scene } from "@/lib/schemas/lesson";
 import { SceneFrame } from "./common";
 import { Card, lerp, PALETTE, useEnter } from "./kit";

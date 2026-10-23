@@ -7,7 +7,7 @@ import { AiOutputError } from "./types";
 import { logUsage } from "./usage";
 
 let client: GoogleGenAI | undefined;
-function gemini() {
+export function gemini() {
   client ??= new GoogleGenAI({ apiKey: serverEnv().GEMINI_API_KEY });
   return client;
 }
@@ -21,9 +21,12 @@ const RETRY_DELAYS_MS = [0, 1500, 4000, 8000];
  * Runs a Gemini call on the primary model and, when it is overloaded, rate limited or slow, on the
  * fallback model, alternating a few times before giving up. Non-transient errors fail immediately.
  */
-async function withModelFallback<T>(call: (model: string) => Promise<T>): Promise<T> {
+export async function withModelFallback<T>(
+  call: (model: string) => Promise<T>,
+  models?: string[],
+): Promise<T> {
   const env = serverEnv();
-  const order = [
+  const order = models ?? [
     env.GEMINI_MODEL,
     env.GEMINI_FALLBACK_MODEL,
     env.GEMINI_MODEL,

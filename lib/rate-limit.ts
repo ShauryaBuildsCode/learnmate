@@ -27,6 +27,7 @@ export const LIMITS = {
   assist: { capacity: 30, refillPerSecond: 1 },
   run: { capacity: 20, refillPerSecond: 0.5 },
   ingest: { capacity: 3, refillPerSecond: 1 / 60 },
+  narration: { capacity: 6, refillPerSecond: 1 / 20 },
 } satisfies Record<string, RateLimitConfig>;
 
 export function resetRateLimits(): void {

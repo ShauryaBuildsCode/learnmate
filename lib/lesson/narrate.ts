@@ -1,0 +1,99 @@
+import { createHash } from "node:crypto";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { synthesizeNarration } from "@/lib/ai/tts";
+import { lessonScriptSchema, type LessonScript } from "@/lib/schemas/lesson";
+import type { Database, Json } from "@/lib/supabase/types";
+
+type Supabase = SupabaseClient<Database>;
+
+export const NARRATION_BUCKET = "narration";
+const CONCURRENCY = 3;
+
+export interface NarrationResult {
+  script: LessonScript;
+  /** Scenes that now have a recording. */
+  recorded: number;
+  /** Scenes that could not be recorded; the player falls back to the browser's voice for these. */
+  failed: number;
+}
+
+export class LessonMissingError extends Error {}
+
+export function narrationPath(userId: string, text: string, uiLang: string): string {
+  return `${userId}/${createHash("sha1").update(`${uiLang}|${text}`).digest("hex")}.wav`;
+}
+
+/** Records any scene narration that is missing, stores it privately, and saves the lengths in the cached lesson. */
+export async function recordNarration(
+  supabase: Supabase,
+  userId: string,
+  topicId: string,
+  uiLang: "en" | "hi",
+): Promise<NarrationResult> {
+  const { data: row } = await supabase
+    .from("lessons")
+    .select("id,script")
+    .eq("topic_id", topicId)
+    .eq("ui_lang", uiLang)
+    .maybeSingle();
+  const parsed = row ? lessonScriptSchema.safeParse(row.script) : null;
+  if (!row || !parsed?.success) throw new LessonMissingError();
+
+  const script = parsed.data;
+  const todo = script.scenes
+    .map((scene, index) => ({ scene, index }))
+    .filter(({ scene }) => !scene.audio);
+  const recordOne = async ({ scene, index }: (typeof todo)[number]) => {
+    const { wav, seconds } = await synthesizeNarration(scene.narration);
+    const path = narrationPath(userId, scene.narration, uiLang);
+    const { error } = await supabase.storage
+      .from(NARRATION_BUCKET)
+      .upload(path, wav, { contentType: "audio/wav", upsert: true });
+    if (error) throw error;
+    script.scenes[index] = { ...scene, audio: { path, seconds } };
+  };
+
+  // Do the first scene alone: if recording or storing it fails (e.g. the bucket isn't set up), stop before
+  // paying for the other scenes. The player then uses the browser's voice for the whole lesson.
+  let failed = 0;
+  const [first, ...rest] = todo;
+  if (first) {
+    try {
+      await recordOne(first);
+    } catch (error) {
+      console.error(
+        "[narration] first scene failed, skipping the rest:",
+        error instanceof Error ? error.message : error,
+      );
+      return { script, recorded: script.scenes.filter((s) => s.audio).length, failed: todo.length };
+    }
+  }
+  let next = 0;
+  await Promise.all(
+    Array.from({ length: CONCURRENCY }, async () => {
+      while (next < rest.length) {
+        const job = rest[next++];
+        try {
+          await recordOne(job);
+        } catch (error) {
+          failed++;
+          console.error(
+            "[narration] scene",
+            job.index,
+            "failed:",
+            error instanceof Error ? error.message : error,
+          );
+        }
+      }
+    }),
+  );
+
+  const recorded = script.scenes.filter((s) => s.audio).length;
+  if (todo.length > failed) {
+    await supabase
+      .from("lessons")
+      .update({ script: script as unknown as Json })
+      .eq("id", row.id);
+  }
+  return { script, recorded, failed: script.scenes.length - recorded };
+}
