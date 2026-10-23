@@ -14,7 +14,7 @@ export function sceneLibrarySpec({ allowTrace, exercises }: SceneSpecArgs): stri
   const ex = exercises.length
     ? exercises.map((e) => `- id "${e.id}" (${e.language}): ${e.prompt}`).join("\n")
     : "(no exercises)";
-  return `Every scene needs "type", "narration" (1 to 3 spoken sentences), "seconds" (6 to 14), "page" (one of the valid source pages where the scene's content comes from) and optionally "emphasis" (see below). Scene types, and what each is for:
+  return `Every scene needs "type", "narration" (1 to 3 spoken sentences), "seconds" (6 to 14), "page" (one of the valid source pages where the scene's content comes from) and optionally "emphasis" (1-3 spoken words to punch) and "energy" (calm, balanced or punchy). Scene types, and what each is for:
 - TitleCard: {title, hook}. Always first. Title at most 4 words.
 - KeyTerms: {terms[3-8]: {label (one or two words, at most 18 characters), icon}}. The topic's vocabulary: icon tiles fly in and become big words, one per spoken word. Great as the second scene.
 - Bento: {cards[3-5]: {title, body (short), stat {value: number, prefix?, suffix?} (optional), tone light|dark|accent, icon}}. An at-a-glance overview. Cards land as their titles are spoken. Use one stat card where a real number from the material fits.

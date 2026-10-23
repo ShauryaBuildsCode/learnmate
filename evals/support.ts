@@ -39,6 +39,8 @@ export interface TutorReply {
   citedPages: number[];
   provider: "claude" | "groq" | null;
   error: string | null;
+  /** Code changes Guru proposed for the editor. */
+  edits: { startLine: number; endLine: number; newText: string }[];
 }
 
 export const EMPTY_CONTEXT: TutorContext = {
@@ -74,6 +76,7 @@ export async function askTutor(
     citedPages: [],
     provider: null,
     error: null,
+    edits: [],
   };
   if (!res.ok) {
     reply.error = `HTTP ${res.status}: ${await res.text()}`;
@@ -84,6 +87,14 @@ export async function askTutor(
     if (!f.success) return;
     const frame: TutorFrame = f.data;
     if (frame.t === "meta") reply.provider = frame.provider;
+    else if (frame.t === "edit")
+      reply.edits.push(
+        ...frame.edits.map((e) => ({
+          startLine: e.startLine,
+          endLine: e.endLine,
+          newText: e.newText,
+        })),
+      );
     else if (frame.t === "final") {
       reply.text = frame.text;
       reply.beyond = frame.beyond;

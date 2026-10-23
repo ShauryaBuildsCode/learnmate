@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { LangToggle } from "@/components/ui/lang-toggle";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { LANGUAGE_LABELS } from "@/lib/ide-templates";
+import type { CodeEdit } from "@/lib/ide/edits";
 import type { Diagnostic } from "@/lib/schemas/diagnostic";
 import type { Files, Language, TestResult } from "@/lib/schemas/exercise";
 import { lessonScriptSchema, type LessonScript, type Scene } from "@/lib/schemas/lesson";
@@ -62,6 +63,7 @@ export function LearnWorkspace({
   const [codeVersion, setCodeVersion] = useState(0);
   const [hasError, setHasError] = useState(false);
   const [askRequest, setAskRequest] = useState(0);
+  const [proposal, setProposal] = useState<CodeEdit[] | null>(null);
   const [planUpdate, setPlanUpdate] = useState<{ version: number; summary: string | null } | null>(
     null,
   );
@@ -332,6 +334,8 @@ export function LearnWorkspace({
                 onSnapshot={onSnapshot}
                 onCheck={onCheck}
                 onAskGuru={() => setAskRequest((n) => n + 1)}
+                proposal={proposal}
+                onProposalResolved={() => setProposal(null)}
               />
             </div>
           </motion.aside>
@@ -345,6 +349,10 @@ export function LearnWorkspace({
           signals={{ failedChecks, hasError, codeVersion, allPassed }}
           askRequest={askRequest}
           onDiagnostics={setDiagnostics}
+          onEdits={(edits) => {
+            setProposal(edits);
+            setIdeOpen(true);
+          }}
         />
       </div>
     </SourceProvider>

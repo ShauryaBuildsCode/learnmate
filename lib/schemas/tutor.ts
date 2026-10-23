@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { codeEditSchema } from "@/lib/ide/edits";
 import { filesSchema, languageSchema, testResultSchema } from "./exercise";
 
 const MAX_CODE_CHARS = 20_000;
@@ -57,6 +58,7 @@ export const tutorFrameSchema = z.discriminatedUnion("t", [
     reset: z.boolean().optional(),
   }),
   z.object({ t: z.literal("delta"), text: z.string() }),
+  z.object({ t: z.literal("edit"), edits: z.array(codeEditSchema).min(1).max(6) }),
   z.object({
     t: z.literal("final"),
     text: z.string(),

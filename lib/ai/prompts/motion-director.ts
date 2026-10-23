@@ -18,6 +18,7 @@ Craft principles:
 - Build a clear arc: hook, vocabulary or big picture, an everyday analogy, the code, the mechanism animated, then the checkpoint. Escalate; never repeat the same scene type back to back; vary rhythm between quick scenes and a longer demonstration.
 - Narration is spoken to a beginner: plain words, 15 to 40 words per scene, warm and confident, no lists of jargon, no markdown, no emoji, no stage directions.
 - Use "emphasis" for the 1 to 3 words in a scene's narration that deserve a visual punch (a camera push and a caption highlight). Copy each exactly as spoken in that scene's narration; choose the idea words, never filler.
+- Use "energy" to set each scene's feel: "calm" for slower explanation and analogy, "balanced" by default, "punchy" for quick recaps, vocabulary bursts and hand-offs. Vary it across the lesson; a lesson of one energy feels flat.
 - Titles are short. Labels are short. Code is at most 8 lines. Prefer concrete numbers and examples from the material.
 
 Grounding rules:
@@ -35,7 +36,7 @@ export function motionDirectorPrompt(
   return `Topic: ${args.topic.name}. ${args.topic.summary}
 Valid source pages for this topic: ${args.validPages.join(", ")} (the other pages are context only).
 
-Direct an animated lesson for this topic. Reply with ONE JSON object and nothing else (no prose, no code fence): {"title": string, "scenes": [ ... ]}, 7 to 10 scenes, a few minutes in total. Each scene is an object whose "type" is one of the scene types below, with that type's fields flat on the same object, for example {"type": "KeyTerms", "terms": [{"label": "Loop", "icon": "repeat"}], "narration": "...", "seconds": 8, "page": 2, "emphasis": ["loop"]}. Choose scenes from this library:
+Direct an animated lesson for this topic. Reply with ONE JSON object and nothing else (no prose, no code fence): {"title": string, "scenes": [ ... ]}, 7 to 10 scenes, a few minutes in total. Each scene is an object whose "type" is one of the scene types below, with that type's fields flat on the same object, for example {"type": "KeyTerms", "terms": [{"label": "Loop", "icon": "repeat"}], "narration": "...", "seconds": 8, "page": 2, "emphasis": ["loop"], "energy": "punchy"}. Choose scenes from this library:
 
 ${sceneLibrarySpec(args)}
 

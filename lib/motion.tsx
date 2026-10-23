@@ -19,6 +19,8 @@ export interface MotionConfig {
   wordFrames?: number[];
   /** Words the director marked for a visual punch. */
   emphasis?: string[];
+  /** Animation tempo set by the director's `energy`: below 1 is calmer, above 1 is snappier. */
+  tempo?: number;
 }
 
 const FrameContext = createContext<{ frame: number } & MotionConfig>({

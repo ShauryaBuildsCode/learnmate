@@ -4,6 +4,7 @@ import { buildTurn, courseBlock, GURU_PERSONA, type TutorPolicy } from "@/lib/ai
 import { fence } from "@/lib/ai/prompts/fence";
 import type { TutorTurn } from "@/lib/ai/types";
 import { groundAnswer, toPageMap } from "@/lib/grounding";
+import { EDIT_CODE_TOOL, fromToolInput, validateEdits } from "@/lib/ide/edits";
 import type { Database, Json } from "@/lib/supabase/types";
 import type { TutorContext, TutorFrame } from "@/lib/schemas/tutor";
 
@@ -44,6 +45,8 @@ export interface GuruCall {
   effort: "low" | "medium";
   /** Hint rung to report back and persist, if this call was a hint. */
   rung?: number;
+  /** Let Guru propose edits to the student's code (needs code in the context). */
+  allowEdits?: boolean;
 }
 
 function summarize(
@@ -83,6 +86,10 @@ export function guruResponse(call: GuruCall): Response {
         controller.enqueue(encoder.encode(`${JSON.stringify(frame)}\n`));
       let text = "";
       let provider: "claude" | "groq" = "claude";
+      let proposed: unknown[] = [];
+      let editCount = 0;
+      const files = call.context.files;
+      const canEdit = !!call.allowEdits && !!files && Object.keys(files).length > 0;
       try {
         for await (const event of streamTutor({
           persona: GURU_PERSONA,
@@ -90,6 +97,16 @@ export function guruResponse(call: GuruCall): Response {
           turns,
           effort: call.effort,
           maxTokens: 2000,
+          ...(canEdit
+            ? {
+                tools: [EDIT_CODE_TOOL],
+                onToolUses: (uses: { name: string; input: unknown }[]) => {
+                  proposed = uses
+                    .filter((u) => u.name === EDIT_CODE_TOOL.name)
+                    .map((u) => fromToolInput(u.input));
+                },
+              }
+            : {}),
         })) {
           if (event.type === "meta") {
             provider = event.provider === "groq" ? "groq" : "claude";
@@ -99,6 +116,22 @@ export function guruResponse(call: GuruCall): Response {
             text += event.text;
             send({ t: "delta", text: event.text });
           }
+        }
+        // Guru's proposed edits are checked against the real code and the teaching policy before the browser sees them.
+        if (canEdit && files && proposed.length) {
+          const { edits, rejected } = validateEdits(proposed, files, call.policy.revealAllowed);
+          if (rejected.length) console.info("[guru] edits refused:", rejected.join("; "));
+          if (edits.length) {
+            send({ t: "edit", edits });
+            editCount = edits.length;
+          }
+        }
+        // A reply that is only a tool call still needs words, so the student isn't left with an empty bubble.
+        if (!text.trim() && editCount > 0) {
+          text =
+            editCount > 1
+              ? "I've suggested a few changes. Review them in the editor and apply what you agree with."
+              : "I've suggested a change. Review it in the editor, and apply it if you agree.";
         }
         const grounded = groundAnswer(text, pageMap);
         send({

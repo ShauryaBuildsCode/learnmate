@@ -27,6 +27,8 @@ const base = {
   narration: z.string().min(10).max(600),
   seconds: z.number().min(4).max(40),
   page: z.number().int().positive(),
+  /** How the scene should feel: calm for explanation, punchy for recaps and transitions. */
+  energy: z.enum(["calm", "balanced", "punchy"]).optional(),
   /** Words from this scene's narration that deserve a visual punch (camera push, caption highlight). */
   emphasis: z.array(z.string().max(30)).max(3).optional(),
   /** Recorded narration for this scene (set by /api/narration, never by the model). */
@@ -168,3 +170,6 @@ export const lessonEnvelopeSchema = z.object({
   directedBy: z.enum(["claude", "gemini"]).optional(),
   scenes: z.array(z.record(z.string(), z.unknown())).min(3).max(20),
 });
+
+/** Animation tempo for a scene's energy. */
+export const ENERGY_TEMPO = { calm: 0.85, balanced: 1, punchy: 1.25 } as const;

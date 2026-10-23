@@ -26,6 +26,9 @@ export interface ClaudeTutorInput {
   turns: TutorTurn[];
   effort: "low" | "medium";
   maxTokens: number;
+  /** Tools Claude may call. Their calls are handed to `onToolUses`; nothing is executed here. */
+  tools?: Anthropic.Beta.BetaTool[];
+  onToolUses?: (uses: { name: string; input: unknown }[]) => void;
 }
 
 function systemBlocks(input: Pick<ClaudeTutorInput, "persona" | "courseBlock">) {
@@ -53,6 +56,7 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
     cache_control: { type: "ephemeral" },
     thinking: { type: "adaptive" },
     output_config: { effort: input.effort },
+    ...(input.tools?.length ? { tools: input.tools } : {}),
     system: systemBlocks(input),
     messages: input.turns,
   });
@@ -69,6 +73,11 @@ export async function* claudeTutorStream(input: ClaudeTutorInput): AsyncGenerato
   });
   if (final.stop_reason === "refusal")
     throw new ClaudeRefusalError(final.stop_details?.category ?? null);
+  // Tool calls are proposals for the browser to preview, so the turn simply ends here (stop_reason may be tool_use).
+  const uses = final.content.flatMap((b) =>
+    b.type === "tool_use" ? [{ name: b.name, input: b.input }] : [],
+  );
+  if (uses.length) input.onToolUses?.(uses);
 }
 
 /** Structured-output call (used for inline diagnostics). Returns null when Claude stops for any reason but end_turn. */
@@ -131,6 +140,8 @@ export function extractJson(text: string): unknown {
  * script) the constrained grammar is too big, and the caller validates the result itself anyway.
  */
 export async function claudeJson(input: {
+  /** Model override, e.g. the second-choice model for a retry. */
+  model?: string;
   persona: string;
   courseBlock: string;
   prompt: string;
@@ -139,7 +150,7 @@ export async function claudeJson(input: {
   task: string;
 }): Promise<unknown | null> {
   const response = await anthropic().beta.messages.create({
-    model: serverEnv().ANTHROPIC_MODEL,
+    model: input.model ?? serverEnv().ANTHROPIC_MODEL,
     max_tokens: input.maxTokens,
     betas: ["server-side-fallback-2026-07-01"],
     fallbacks: "default",

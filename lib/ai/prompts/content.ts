@@ -1,5 +1,4 @@
 import { INJECTION_RULE, fence } from "./fence";
-import { sceneLibrarySpec } from "./scenes";
 
 export const CONTENT_SYSTEM = `You are the content engine of LearnMate, an app that turns study material into lessons, exercises and quizzes for students.
 Rules that apply to everything you write:
@@ -41,21 +40,6 @@ For each exercise:
 - Python and JavaScript functions must RETURN their result (a number, string, list...), never just print it: if the worksheet says to print something, make the function return that text as a string. Every test must compare the returned value with a specific expected value (never \"is None\", \"== None\", or a bare call), so the starter stub fails it.
 - "hints": exactly 3, escalating: 1) a guiding question, 2) the concept and which page covers it, 3) a partial fix that does not give the full solution.
 - "page": the page where the exercise or its concept appears.`;
-}
-
-export function lessonPrompt(args: {
-  topic: { name: string; summary: string; pages: number[] };
-  validPages: number[];
-  exercises: { id: string; prompt: string; language: string }[];
-  allowTrace: boolean;
-  uiLang: "en" | "hi";
-}): string {
-  return `Topic: ${args.topic.name}. ${args.topic.summary}
-Valid source pages: ${args.validPages.join(", ")} (the other pages are context only; draw scenes from the valid pages)
-
-Write an animated lesson script for this topic as JSON: {"title": string, "scenes": [...]}. 7 to 10 scenes. The scenes are motion graphics timed to a recorded voice, so write the narration to speak every on-screen label in the order it appears, in the exact words. Pick the scene whose motion best shows each idea; do not repeat one type back to back.
-${sceneLibrarySpec(args)}
-Teach the idea with an analogy first, then code, then the trace or flowchart, then the checkpoint. Explain in simple ${args.uiLang === "hi" ? "Hindi (Devanagari script; keep code and identifiers in English)" : "English"}.`;
 }
 
 export function quizPrompt(args: {

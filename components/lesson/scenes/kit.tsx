@@ -156,8 +156,13 @@ export function Card({
 /** Spring that starts `delay` frames into the scene and settles with a gentle overshoot. */
 export function useEnter(delay = 0, config: { damping?: number; stiffness?: number } = {}): number {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
-  return spring({ frame: frame - delay, fps, config: { damping: 13, stiffness: 120, ...config } });
+  const { fps, tempo = 1 } = useVideoConfig();
+  const merged = { damping: 13, stiffness: 120, ...config };
+  return spring({
+    frame: frame - delay,
+    fps,
+    config: { damping: merged.damping * tempo, stiffness: merged.stiffness * tempo * tempo },
+  });
 }
 
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
@@ -191,7 +196,8 @@ export function useTween(
   easing: (t: number) => number = Easing.expoOut,
 ): number {
   const frame = useCurrentFrame();
-  return interpolate(frame, [delay, delay + duration], [0, 1], {
+  const { tempo = 1 } = useVideoConfig();
+  return interpolate(frame, [delay, delay + duration / tempo], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
     easing,
@@ -238,10 +244,11 @@ export function useSquash(
   config = { damping: 9, stiffness: 150 },
 ): { p: number; sx: number; sy: number } {
   const frame = useCurrentFrame();
-  const { fps } = useVideoConfig();
+  const { fps, tempo = 1 } = useVideoConfig();
   const f = frame - delay;
-  const p = spring({ frame: f, fps, config });
-  const v = velocity(f, fps, config);
+  const timed = { damping: config.damping * tempo, stiffness: config.stiffness * tempo * tempo };
+  const p = spring({ frame: f, fps, config: timed });
+  const v = velocity(f, fps, timed);
   const stretch = Math.min(0.26, v * 16);
   const landing = p > 1 ? Math.min(0.1, (p - 1) * 1.1) : 0;
   return { p, sx: 1 - stretch * 0.55 + landing, sy: 1 + stretch - landing };

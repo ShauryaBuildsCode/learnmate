@@ -10,7 +10,7 @@ import { speak, speechSupported, stopSpeaking, type NarrationLang } from "@/lib/
 import { FPS, layout, sceneSeconds, speechSeconds } from "@/lib/lesson/timing";
 import { FrameProvider } from "@/lib/motion";
 import { tracePython } from "@/lib/runners/python";
-import type { LessonScript, Scene } from "@/lib/schemas/lesson";
+import { ENERGY_TEMPO, type LessonScript, type Scene } from "@/lib/schemas/lesson";
 import { cn } from "@/lib/utils";
 import { SceneRenderer } from "./scene-renderer";
 
@@ -398,6 +398,7 @@ export function LessonStage({ script, audioUrls, lang, onCheckpoint, onSceneChan
               narration={scene.narration}
               wordFrames={current.wordFrames}
               emphasis={scene.emphasis}
+              tempo={ENERGY_TEMPO[scene.energy ?? "balanced"]}
             >
               <SceneRenderer key={index} scene={scene} />
             </FrameProvider>
