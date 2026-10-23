@@ -1,0 +1,138 @@
+import { describe, expect, it, vi } from "vitest";
+import { allow, resetRateLimits } from "@/lib/rate-limit";
+import { toRunResult, runOnJudge0, Judge0UnavailableError } from "@/lib/runners/judge0";
+import { buildSrcdoc, flattenReactModules } from "@/lib/runners/srcdoc";
+import { clip, MAX_OUTPUT_CHARS, RunTimeoutError, withTimeout } from "@/lib/runners/timeout";
+
+const b64 = (s: string) => Buffer.from(s).toString("base64");
+
+describe("withTimeout", () => {
+  it("rejects with RunTimeoutError and fires the kill callback when work hangs", async () => {
+    const kill = vi.fn();
+    await expect(withTimeout(new Promise(() => {}), 20, kill)).rejects.toBeInstanceOf(
+      RunTimeoutError,
+    );
+    expect(kill).toHaveBeenCalledOnce();
+  });
+
+  it("resolves normally and does not kill when work finishes in time", async () => {
+    const kill = vi.fn();
+    await expect(withTimeout(Promise.resolve(7), 50, kill)).resolves.toBe(7);
+    await new Promise((r) => setTimeout(r, 70));
+    expect(kill).not.toHaveBeenCalled();
+  });
+
+  it("explains the timeout in plain English", () => {
+    expect(new RunTimeoutError(5000).message).toContain("5 seconds");
+  });
+});
+
+describe("clip", () => {
+  it("truncates oversized output", () => {
+    expect(clip("x".repeat(MAX_OUTPUT_CHARS + 10))).toContain("output truncated");
+    expect(clip("ok")).toBe("ok");
+  });
+});
+
+describe("rate limiter", () => {
+  it("allows a burst up to capacity, then blocks, then refills", () => {
+    resetRateLimits();
+    const cfg = { capacity: 2, refillPerSecond: 1 };
+    expect(allow("k", cfg, 0)).toBe(true);
+    expect(allow("k", cfg, 0)).toBe(true);
+    expect(allow("k", cfg, 0)).toBe(false);
+    expect(allow("k", cfg, 1500)).toBe(true);
+  });
+
+  it("keeps users separate", () => {
+    resetRateLimits();
+    const cfg = { capacity: 1, refillPerSecond: 0 };
+    expect(allow("a", cfg, 0)).toBe(true);
+    expect(allow("b", cfg, 0)).toBe(true);
+    expect(allow("a", cfg, 0)).toBe(false);
+  });
+});
+
+describe("srcdoc builder", () => {
+  it("inlines referenced css/js and never needs allow-same-origin", () => {
+    const html = buildSrcdoc(
+      {
+        "index.html":
+          '<html><head><link rel="stylesheet" href="style.css"></head><body><script src="script.js"></script></body></html>',
+        "style.css": "h1{color:red}",
+        "script.js": "console.log('hi')",
+      },
+      "html",
+      "run1",
+    );
+    expect(html).toContain("<style>h1{color:red}</style>");
+    expect(html).toContain("console.log('hi')");
+    expect(html).toContain('"run1"');
+  });
+
+  it("escapes closing script tags in user code", () => {
+    const html = buildSrcdoc({ "main.js": 'console.log("</script><b>")' }, "javascript", "r");
+    expect(html).not.toContain('"</script><b>"');
+  });
+
+  it("wraps each assert test so one failure cannot stop the others", () => {
+    const html = buildSrcdoc({ "main.js": "var x = 1;" }, "javascript", "r", [
+      { kind: "assert", name: "a", code: "if (x !== 1) throw new Error('bad')" },
+      { kind: "assert", name: "b", code: "throw new Error('boom')" },
+    ]);
+    expect(html.match(/__lm_result\(\d, true\)/g)).toHaveLength(2);
+    expect(html).toContain("__lm_result(1, false");
+  });
+
+  it("flattens ES module React files into plain declarations", () => {
+    const out = flattenReactModules({
+      "App.js":
+        'import { useState } from "react";\nimport Item from "./Item";\nexport default function App() { return <Item/>; }',
+      "Item.js": "export function Item() { return <b/>; }",
+    });
+    expect(out).not.toMatch(/\bimport\b/);
+    expect(out).not.toMatch(/\bexport\b/);
+    expect(out.indexOf("function Item")).toBeLessThan(out.indexOf("function App"));
+  });
+});
+
+describe("Judge0 mapping", () => {
+  const base = { stdout: null, stderr: null, compile_output: null, message: null, time: "0.01" };
+
+  it("maps accepted runs", () => {
+    const r = toRunResult({
+      ...base,
+      stdout: b64("hello\n"),
+      status: { id: 3, description: "Accepted" },
+    });
+    expect(r).toMatchObject({ stdout: "hello\n", exitCode: 0, durationMs: 10 });
+  });
+
+  it("surfaces compile errors on stderr", () => {
+    const r = toRunResult({
+      ...base,
+      compile_output: b64("error: x"),
+      status: { id: 6, description: "Compilation Error" },
+    });
+    expect(r.stderr).toBe("error: x");
+    expect(r.exitCode).toBe(1);
+  });
+
+  it("reports time-limit exceeded with exit 124", () => {
+    const r = toRunResult({ ...base, status: { id: 5, description: "Time Limit Exceeded" } });
+    expect(r.exitCode).toBe(124);
+    expect(r.stderr).toContain("Time limit");
+  });
+
+  it("raises a friendly error when Judge0 is unreachable", async () => {
+    process.env.JUDGE0_URL = "http://judge0.invalid";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "x";
+    process.env.GEMINI_API_KEY = "x";
+    process.env.ANTHROPIC_API_KEY = "x";
+    process.env.GROQ_API_KEY = "x";
+    const failing = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"));
+    await expect(runOnJudge0("cpp", "int main(){}", "", failing)).rejects.toBeInstanceOf(
+      Judge0UnavailableError,
+    );
+  });
+});
