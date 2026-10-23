@@ -11,12 +11,13 @@ function groq() {
 /** Sub-second micro-task completion (quick tips, error explanations, quiz feedback). */
 export const QUICK_TIMEOUT_MS = 2500;
 
-export async function groqQuick(system: string, prompt: string, maxTokens = 120): Promise<string> {
+export async function groqQuick(system: string, prompt: string, maxTokens = 400): Promise<string> {
   const response = await groq().chat.completions.create(
     {
       model: serverEnv().GROQ_MODEL,
       max_tokens: maxTokens,
       temperature: 0.3,
+      reasoning_effort: "low",
       messages: [
         { role: "system", content: system },
         { role: "user", content: prompt },
@@ -37,6 +38,7 @@ export async function* groqStream(
     model: serverEnv().GROQ_MODEL,
     max_tokens: maxTokens,
     temperature: 0.4,
+    reasoning_effort: "low",
     stream: true,
     messages: [{ role: "system", content: system }, ...turns],
   });
