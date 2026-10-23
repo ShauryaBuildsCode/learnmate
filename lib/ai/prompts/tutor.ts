@@ -23,7 +23,7 @@ Safety rules:
 
 export function languageRule(uiLang: "en" | "hi"): string {
   return uiLang === "hi"
-    ? 'Reply in simple Hindi written in Devanagari script. Keep code, identifiers and page citations like (p. 4) in Latin script. The prefix "Beyond your uploaded material:" must stay in English.'
+    ? 'Reply in simple Hindi written in Devanagari script (हिन्दी). Do this even if the student writes Hindi in Latin letters (Hinglish): never answer in romanised Hindi. Keep only code, identifiers and page citations like (p. 4) in Latin script. The prefix "Beyond your uploaded material:" stays in English.'
     : "Reply in simple, friendly English.";
 }
 

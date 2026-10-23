@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isGrounded, isRepeat, shuffleOptions } from "@/lib/quiz/generate";
 import { scoreQuiz } from "@/lib/quiz/score";
-import { sanitizeExercises, sanitizeTopics } from "@/lib/ingest/pipeline";
+import { isMeaningfulTest, sanitizeExercises, sanitizeTopics } from "@/lib/ingest/pipeline";
 import type { GeneratedExerciseWithSolution, QuizQuestion, TopicMap } from "@/lib/schemas/content";
 
 const q = (over: Partial<QuizQuestion> = {}): QuizQuestion => ({
@@ -121,5 +121,24 @@ describe("ingest sanitising", () => {
     expect(out).toHaveLength(1);
     expect(out[0].tests).toHaveLength(1);
     expect(out[0].page).toBe(1);
+  });
+});
+
+describe("meaningful exercise tests", () => {
+  it("rejects tests a do-nothing starter would pass", () => {
+    expect(isMeaningfulTest({ kind: "assert", code: "assert repeat_hello(3) is None" })).toBe(
+      false,
+    );
+    expect(isMeaningfulTest({ kind: "assert", code: "assert f(1) == None" })).toBe(false);
+    expect(isMeaningfulTest({ kind: "assert", code: "repeat_hello(3)" })).toBe(false);
+  });
+
+  it("keeps real assertions, including 'is not None' and JS throw checks, and io tests", () => {
+    expect(isMeaningfulTest({ kind: "assert", code: "assert sum_to(5) == 15" })).toBe(true);
+    expect(isMeaningfulTest({ kind: "assert", code: "assert f(1) is not None" })).toBe(true);
+    expect(
+      isMeaningfulTest({ kind: "assert", code: "if (f(1) !== 2) throw new Error('bad')" }),
+    ).toBe(true);
+    expect(isMeaningfulTest({ kind: "io", code: undefined })).toBe(true);
   });
 });

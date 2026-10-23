@@ -56,6 +56,17 @@ export function sanitizeTopics(map: TopicMap, validPages: ReadonlySet<number>): 
   return topics;
 }
 
+/**
+ * A test that a do-nothing starter would pass teaches nothing. For Python and JavaScript, drop tests that only
+ * check for no result, or that contain no assertion at all.
+ */
+export function isMeaningfulTest(test: { kind: string; code?: string }): boolean {
+  if (test.kind !== "assert" || test.code === undefined) return true;
+  const code = test.code;
+  if (/\bis None\b|==\s*None\b|={2,3}\s*undefined\b/.test(code)) return false;
+  return /\bassert\b|\bthrow\b/.test(code);
+}
+
 /** Drops tests that do not suit the language and exercises left with none; fixes bad topic/page references. */
 export function sanitizeExercises(
   list: GeneratedExerciseWithSolution[],
@@ -67,7 +78,9 @@ export function sanitizeExercises(
     const topic = topics[ex.topicIndex];
     if (!topic) continue;
     const wantsIo = isServerLanguage(ex.language as Language);
-    const tests = ex.tests.filter((t) => (wantsIo ? t.kind === "io" : t.kind === "assert"));
+    const tests = ex.tests
+      .filter((t) => (wantsIo ? t.kind === "io" : t.kind === "assert"))
+      .filter(isMeaningfulTest);
     if (tests.length === 0 || Object.keys(ex.starterFiles).length === 0) continue;
     out.push({ ...ex, tests, page: validPages.has(ex.page) ? ex.page : topic.pages[0] });
   }

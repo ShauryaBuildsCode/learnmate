@@ -18,12 +18,16 @@ export async function userClient() {
 /** Signs in through @supabase/ssr and returns the cookie header the Next.js routes expect. */
 export async function sessionCookie(): Promise<string> {
   const jar = new Map<string, string>();
-  const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
-    cookies: {
-      getAll: () => [...jar].map(([name, value]) => ({ name, value })),
-      setAll: (list) => list.forEach(({ name, value }) => jar.set(name, value)),
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => [...jar].map(([name, value]) => ({ name, value })),
+        setAll: (list) => list.forEach(({ name, value }) => jar.set(name, value)),
+      },
     },
-  });
+  );
   const { error } = await supabase.auth.signInWithPassword({ email: EMAIL, password: PASSWORD });
   if (error) throw new Error(`Eval sign-in failed: ${error.message}`);
   return [...jar].map(([name, value]) => `${name}=${value}`).join("; ");
@@ -64,7 +68,13 @@ export async function askTutor(
     headers: { "content-type": "application/json", cookie },
     body: JSON.stringify({ history: [], context: EMPTY_CONTEXT, uiLang: "en", ...body }),
   });
-  const reply: TutorReply = { text: "", beyond: false, citedPages: [], provider: null, error: null };
+  const reply: TutorReply = {
+    text: "",
+    beyond: false,
+    citedPages: [],
+    provider: null,
+    error: null,
+  };
   if (!res.ok) {
     reply.error = `HTTP ${res.status}: ${await res.text()}`;
     return reply;
@@ -87,7 +97,9 @@ export class Report {
   rows: { section: string; name: string; ok: boolean; detail?: string }[] = [];
   check(section: string, name: string, ok: boolean, detail?: string) {
     this.rows.push({ section, name, ok, detail });
-    console.log(`${ok ? "PASS" : "FAIL"}  [${section}] ${name}${!ok && detail ? ` -> ${detail}` : ""}`);
+    console.log(
+      `${ok ? "PASS" : "FAIL"}  [${section}] ${name}${!ok && detail ? ` -> ${detail}` : ""}`,
+    );
   }
   get failed() {
     return this.rows.filter((r) => !r.ok);

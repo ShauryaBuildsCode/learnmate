@@ -38,6 +38,7 @@ For each exercise:
 - "referenceSolution": the same file names with a correct, complete solution that passes every test.
 - "tests": 3 to 5 tests. For python, javascript, html and react use {"kind":"assert","name":"short description","code":"..."} where code is statements that throw when the behaviour is wrong (Python: assert statements calling the student's function; JavaScript/HTML/React: if (...) throw new Error("..."); checks, using the DOM for HTML/React). For c, cpp, java, go and rust use {"kind":"io","name":"...","stdin":"...","expected":"..."} where the program reads stdin and prints stdout.
 - Never use interactive input(): rewrite the task as a function with arguments (Python/JS) or a program that reads stdin (compiled languages).
+- Python and JavaScript functions must RETURN their result (a number, string, list...), never just print it: if the worksheet says to print something, make the function return that text as a string. Every test must compare the returned value with a specific expected value (never \"is None\", \"== None\", or a bare call), so the starter stub fails it.
 - "hints": exactly 3, escalating: 1) a guiding question, 2) the concept and which page covers it, 3) a partial fix that does not give the full solution.
 - "page": the page where the exercise or its concept appears.`;
 }
