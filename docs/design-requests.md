@@ -39,4 +39,4 @@ existing "Close Guru", "Ask Guru", "Send", "Play"/"Pause", "Previous scene", "Ne
 - `npm run build` and `npm run typecheck` currently fail on code already in the branch, so the frontend cannot produce a production build until these are fixed by their owners:
   - `components/tutor/guru-panel.tsx(214,47)`: `Property 'message' does not exist` on the `{ t: "edit" } | { t: "error" }` union (needs a narrowing check on `t`).
   - `tests/quiz.test.ts(75,9)`: the test fixture is missing the new required `kind` and `language` fields.
-- Status: open (needs the core team)
+- Status: resolved. After merging the latest origin/main, `npm run typecheck`, lint and `npm run build` all pass.
