@@ -1,0 +1,71 @@
+# Firebase App Hosting configuration for LearnMate (Next.js on Cloud Run).
+# Local .env files are not uploaded, so every variable the app needs is declared here. Secrets live in Secret Manager
+# (create them with `npx -y firebase-tools@latest apphosting:secrets:set <name>`); nothing sensitive is committed.
+runConfig:
+  cpu: 1
+  # PDF parsing and lesson generation hold large strings in memory; 512 MiB is too tight.
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 40
+
+env:
+  # Supabase (the browser needs these baked in at build time, so they are available to BUILD as well).
+  - variable: NEXT_PUBLIC_SUPABASE_URL
+    secret: learnmate-supabase-url
+  - variable: NEXT_PUBLIC_SUPABASE_ANON_KEY
+    secret: learnmate-supabase-anon-key
+  - variable: SUPABASE_SERVICE_ROLE_KEY
+    secret: learnmate-supabase-service-role-key
+    availability:
+      - RUNTIME
+
+  # Firebase web app (public identifiers)
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyDB8lUzVBNxIwCT4QG4M9SciJhKwjobAhk
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: learnmate-8d7f6
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:935098200050:web:b0d3ba49f9549b7d2d456b
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: learnmate-8d7f6.firebasestorage.app
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: 935098200050
+  - variable: NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
+    value: G-FC4NSYKF8Z
+
+  # AI providers (runtime only)
+  - variable: ANTHROPIC_API_KEY
+    secret: learnmate-anthropic-api-key
+    availability:
+      - RUNTIME
+  - variable: GEMINI_API_KEY
+    secret: learnmate-gemini-api-key
+    availability:
+      - RUNTIME
+  - variable: GROQ_API_KEY
+    secret: learnmate-groq-api-key
+    availability:
+      - RUNTIME
+  - variable: ELEVENLABS_API_KEY
+    secret: learnmate-elevenlabs-api-key
+    availability:
+      - RUNTIME
+  - variable: ONLINECOMPILER_API_KEY
+    secret: learnmate-onlinecompiler-api-key
+    availability:
+      - RUNTIME
+
+  # Non-secret settings
+  - variable: ANTHROPIC_MODEL
+    value: claude-haiku-5-5
+    availability:
+      - RUNTIME
+  - variable: ANTHROPIC_TUTOR_MODEL
+    value: claude-sonnet-5-5
+    availability:
+      - RUNTIME
+  - variable: ELEVENLABS_MODEL
+    value: eleven_multilingual_v2
+    availability:
+      - RUNTIME

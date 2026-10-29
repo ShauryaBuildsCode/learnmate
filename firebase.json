@@ -1,0 +1,21 @@
+{
+  "apphosting": {
+    "backendId": "learnmate",
+    "rootDir": "/",
+    "ignore": [
+      "node_modules",
+      ".git",
+      ".next",
+      ".output",
+      ".vercel",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "test-results",
+      "e2e",
+      "evals",
+      "tests",
+      ".env.local",
+      ".claude"
+    ]
+  }
+}
