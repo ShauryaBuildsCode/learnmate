@@ -123,7 +123,7 @@ export default async function ProfilePage() {
         <section className="space-y-3" aria-label="About you">
           <h2 className="text-lg font-semibold">About you</h2>
           <p className="text-sm text-muted-foreground">
-            LearnMate uses this to pitch lessons, notes and Guru&apos;s help at the right level.
+            rohmbic uses this to pitch lessons, notes and Guru&apos;s help at the right level.
           </p>
           <ProfileForm
             userId={user.id}

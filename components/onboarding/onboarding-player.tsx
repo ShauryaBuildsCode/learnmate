@@ -24,12 +24,12 @@ function scenesFor(p: Profile): SceneDef[] {
   return [
     {
       seconds: 5,
-      narration: `Hi ${p.name}. Welcome to LearnMate. Let's make it stick.`,
+      narration: `Hi ${p.name}. Welcome to rohmbic. Let's make it stick.`,
       render: (x) => <Welcome p={x} />,
     },
     {
       seconds: 6.5,
-      narration: "Drop in any chapter or your own notes. LearnMate finds the topics for you.",
+      narration: "Drop in any chapter or your own notes. rohmbic finds the topics for you.",
       render: (x) => <Upload p={x} />,
     },
     {

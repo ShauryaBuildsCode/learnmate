@@ -38,7 +38,7 @@ export const STORY_STAGES: readonly StoryStage[] = [
     label: "Upload",
     icon: Upload,
     title: "Start with your own notes.",
-    body: "Drop in a PDF chapter or paste your notes. LearnMate works from what you actually have to learn.",
+    body: "Drop in a PDF chapter or paste your notes. rohmbic works from what you actually have to learn.",
     glow: [b1, b2, b3],
   },
   {
@@ -131,7 +131,7 @@ export const SUBJECT_STAGES: readonly number[] = [2, 5];
 export const STORY_STEPS = [
   {
     title: "Upload your material",
-    body: "Drop in a PDF of up to 20 pages. LearnMate reads it, finds the topics and builds exercises.",
+    body: "Drop in a PDF of up to 20 pages. rohmbic reads it, finds the topics and builds exercises.",
   },
   {
     title: "Watch it come alive",

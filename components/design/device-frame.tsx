@@ -17,7 +17,7 @@ interface DeviceFrameProps {
  */
 export function DeviceFrame({
   children,
-  address = "learnmate.app",
+  address = "rohmbic.com",
   badge = "Demo data",
   toolbar,
   className,

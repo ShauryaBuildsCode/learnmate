@@ -26,7 +26,7 @@ const STEPS: JourneyStep[] = [
     icon: FileUp,
     title: "Upload your notes",
     body: "Bring one chapter as a PDF or pasted text.",
-    detail: "LearnMate keeps the lesson grounded in the material you actually need to study.",
+    detail: "rohmbic keeps the lesson grounded in the material you actually need to study.",
   },
   {
     icon: ScanSearch,

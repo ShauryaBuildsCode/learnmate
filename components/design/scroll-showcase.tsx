@@ -3,6 +3,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -19,6 +20,12 @@ import { SubjectSwitcher } from "@/components/design/subject-switcher";
 import { STORY_STAGES, STORY_STEPS, SUBJECT_STAGES } from "@/components/design/story-stages";
 import { cn } from "@/lib/utils";
 import type { Subject } from "@/components/design/teaching-data";
+
+/**
+ * When true, scrolling up while inside the story jumps back to the start of the section in one move,
+ * instead of scrubbing back through the stages. Set to false to restore normal reverse scrolling.
+ */
+const SCROLL_UP_SNAPS_TO_START = true;
 
 const COUNT = STORY_STAGES.length;
 const MemoScene = memo(StoryScene);
@@ -55,6 +62,15 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
 
   const [view, setView] = useState<View>({ stage: 0, p: 0 });
   const stageRef = useRef(0);
+  // True while this component is moving the page itself (stepper clicks, the snap), so the snap
+  // listener never reacts to its own scrolling.
+  const moving = useRef(false);
+  const moveTimer = useRef<number | undefined>(undefined);
+  const beginMove = useCallback((ms = 1100) => {
+    moving.current = true;
+    window.clearTimeout(moveTimer.current);
+    moveTimer.current = window.setTimeout(() => (moving.current = false), ms);
+  }, []);
   // A manual subject choice belongs to the stage it was made on. Scrolling to another stage drops it,
   // so the story always resumes from its own default and never fights the visitor mid-stage.
   const [override, setOverride] = useState<{ stage: number; subject: Subject } | null>(null);
@@ -88,10 +104,37 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY;
       const range = el.offsetHeight - window.innerHeight + HEADER;
+      beginMove(1400);
       window.scrollTo({ top: top - HEADER + range * target, behavior: "smooth" });
     },
-    [manual, reduced, sync],
+    [beginMove, manual, reduced, sync],
   );
+
+  // Scrolling up inside the story returns to the very start of the section, then lets you leave upward.
+  useEffect(() => {
+    if (!SCROLL_UP_SNAPS_TO_START || reduced) return;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const goingUp = y < last;
+      last = y;
+      const el = root.current;
+      if (!el) return;
+      const start = el.getBoundingClientRect().top + y - HEADER;
+      if (moving.current) {
+        // The snap is finished once we arrive; stop ignoring scrolls.
+        if (Math.abs(y - start) < 3) moving.current = false;
+        return;
+      }
+      const end = start + el.offsetHeight - window.innerHeight + HEADER;
+      if (goingUp && y > start + 24 && y <= end + 4) {
+        beginMove(1200);
+        window.scrollTo({ top: start, behavior: "smooth" });
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [beginMove, reduced]);
 
   return (
     <div ref={root} className="story" data-static={reduced}>
@@ -191,7 +234,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
 
             <div className="min-h-0 self-stretch lg:self-center">
               <DeviceFrame
-                address={`learnmate.app / ${current.label.toLowerCase()}`}
+                address={`rohmbic.com / ${current.label.toLowerCase()}`}
                 toolbar={
                   <>
                     <span className="truncate">
