@@ -48,6 +48,7 @@ import {
   type TestState,
   useReduce,
 } from "@/components/design/lm-kit";
+import { RohmbicMark, RohmbicWordmark } from "@/components/design/logo";
 import { cn } from "@/lib/utils";
 
 /*
@@ -730,8 +731,9 @@ function AppBar({ index }: { index: number }) {
   const provider = PROVIDERS[index];
   return (
     <div className="absolute inset-x-0 top-0 flex h-9 items-center gap-2 border-b border-line bg-surface px-4">
-      <BookMark className="size-5 text-ink" />
-      <span className="text-[13px] font-semibold text-ink">LearnMate</span>
+      <RohmbicMark className="h-[18px] text-ink" />
+      <RohmbicWordmark className="h-[13px] text-ink" />
+      <span className="sr-only">rohmbic</span>
       <span className="mx-auto font-mono text-xs text-lm-muted">
         python-loops-lists.pdf › Loops
       </span>
@@ -750,34 +752,6 @@ function AppBar({ index }: { index: number }) {
         </AnimatePresence>
       </div>
     </div>
-  );
-}
-
-export function BookMark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 28 28" className={cn("size-7", className)} fill="none" aria-hidden="true">
-      <path
-        d="M13 6.5C10.5 4.8 7 4.5 3.5 5v15.5c3.5-.5 7-.2 9.5 1.5V6.5z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M15 6.5c2.5-1.7 6-2 9.5-1.5v15.5c-3.5-.5-7-.2-9.5 1.5V6.5z"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinejoin="round"
-      />
-      <rect
-        className="lm-caret-rect"
-        x="13"
-        y="5"
-        width="2"
-        height="18"
-        rx="1"
-        fill="currentColor"
-      />
-    </svg>
   );
 }
 
@@ -839,7 +813,7 @@ function HeroDemo() {
       <div aria-hidden="true">
         <ScaledStage width={762} height={442}>
           <BrowserFrame
-            url="learnmate.app/learn/loops"
+            url="rohmbic.com/learn/loops"
             className="h-[442px] w-[762px]"
             bodyClassName="relative h-[404px] w-[760px] bg-bg"
           >
@@ -984,8 +958,8 @@ export function LmHero({
             variants={reveal}
             className="mt-6 mb-0 max-w-[34rem] text-[17px] leading-[1.6] text-ink-2 sm:text-lg"
           >
-            Upload a PDF. LearnMate turns it into animated explainer videos, hands-on coding
-            exercises in a real IDE, and Guru, a tutor who teaches by asking the right question.
+            Upload a PDF. rohmbic turns it into animated explainer videos, hands-on coding exercises
+            in a real IDE, and Guru, a tutor who teaches by asking the right question.
           </motion.p>
           <motion.div variants={reveal} className="mt-8 flex flex-wrap gap-3">
             <Link

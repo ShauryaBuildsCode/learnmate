@@ -8,9 +8,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "LearnMate",
+  title: "rohmbic · Your textbook, turned into lessons you can run.",
   description:
-    "Turn study material into animated lessons, hands-on coding practice and a personal AI tutor.",
+    "Your textbook, turned into lessons you can run. Animated explainers, hands-on coding practice and a tutor that asks before it tells.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

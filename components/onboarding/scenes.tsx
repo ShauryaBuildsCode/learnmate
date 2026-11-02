@@ -139,7 +139,7 @@ export function Upload({ p }: { p: Profile }) {
     ? ["Variables", "Loops", "Functions", "Arrays"]
     : ["Key ideas", "Definitions", "Examples", "Quiz"];
   return (
-    <Frame caption="Drop in a PDF or paste your notes. LearnMate finds the topics.">
+    <Frame caption="Drop in a PDF or paste your notes. rohmbic finds the topics.">
       <div style={{ ...center, gap: 0, position: "relative" }}>
         <div
           style={{

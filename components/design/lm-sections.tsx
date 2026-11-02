@@ -41,7 +41,7 @@ import {
   stagger,
   useReduce,
 } from "@/components/design/lm-kit";
-import { BookMark } from "@/components/design/lm-hero";
+import { Logo } from "@/components/design/logo";
 import { useTheme } from "next-themes";
 import { COPY } from "@/components/design/lm-copy";
 import { cn } from "@/lib/utils";
@@ -85,7 +85,7 @@ export function LmHeader({ signedIn }: { signedIn: boolean }) {
   const bg = useTransform(scrollY, [0, 24], [0, 1]);
   const cta = signedIn
     ? { label: "Go to dashboard", href: "/dashboard" }
-    : { label: "Try LearnMate", href: "/signin" };
+    : { label: "Try rohmbic", href: "/signin" };
   return (
     <header className="sticky top-0 z-50">
       <motion.div
@@ -97,11 +97,8 @@ export function LmHeader({ signedIn }: { signedIn: boolean }) {
         aria-label="Main"
         className="relative mx-auto flex h-16 max-w-[1200px] items-center justify-between px-4 sm:px-6"
       >
-        <Link href="/" aria-label="LearnMate home" className="rounded-md">
-          <span className="inline-flex items-center gap-2 text-ink">
-            <BookMark />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">LearnMate</span>
-          </span>
+        <Link href="/" aria-label="rohmbic home" className="rounded-md">
+          <Logo className="text-ink" />
         </Link>
         <ul className="m-0 hidden list-none items-center gap-1 p-0 md:flex">
           {COPY.nav.map((l) => (
@@ -754,10 +751,7 @@ export function LmFooter({ signedIn }: { signedIn: boolean }) {
     <footer className="border-t border-line px-4 py-12 sm:px-6">
       <div className="mx-auto flex max-w-[1200px] flex-col gap-8 md:flex-row md:justify-between">
         <div className="max-w-sm">
-          <span className="inline-flex items-center gap-2 text-ink">
-            <BookMark />
-            <span className="text-[17px] font-semibold tracking-[-0.02em]">LearnMate</span>
-          </span>
+          <Logo className="text-ink" />
           <p className="mt-3 mb-0 text-[15px] text-ink-2">
             Turn your study material into lessons you can run.
           </p>

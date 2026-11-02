@@ -31,7 +31,7 @@ export function LandingHeader({ signedIn }: { signedIn: boolean }) {
       <div className="mx-auto flex h-14 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
         <Link
           href="/"
-          aria-label="LearnMate home"
+          aria-label="rohmbic home"
           className="rounded-md transition-transform duration-200 hover:scale-[1.02]"
         >
           <Logo />

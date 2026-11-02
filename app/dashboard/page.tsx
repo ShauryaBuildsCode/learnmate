@@ -239,7 +239,7 @@ export default async function DashboardPage() {
                 </span>
                 <h2 className="font-medium">No courses yet</h2>
                 <p className="max-w-sm text-sm text-muted-foreground">
-                  Add a chapter and LearnMate will build your first course.
+                  Add a chapter and rohmbic will build your first course.
                 </p>
               </div>
               <ol className="mx-auto grid max-w-md gap-2 text-sm">

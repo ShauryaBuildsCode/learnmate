@@ -106,7 +106,7 @@ export function ProductPreview() {
   return (
     <section
       ref={sectionRef}
-      aria-label="Interactive LearnMate lesson demo"
+      aria-label="Interactive rohmbic lesson demo"
       className="demo-preview surface-sheen overflow-hidden rounded-2xl border shadow-lg"
       data-playing={playing}
     >

@@ -32,7 +32,7 @@ const COPY: Record<
     title: "Welcome back",
     subtitle: "Sign in to pick up where you left off.",
     cta: "Sign in",
-    alt: "New to LearnMate?",
+    alt: "New to rohmbic?",
     altHref: "/signup",
     altCta: "Create an account",
   },
@@ -160,7 +160,7 @@ function Form({ mode }: { mode: Mode }) {
         </h1>
         <p className="text-sm text-muted-foreground">
           {signupStep2
-            ? "A few quick questions so LearnMate can teach the way you like. All optional."
+            ? "A few quick questions so rohmbic can teach the way you like. All optional."
             : copy.subtitle}
         </p>
       </div>
@@ -403,7 +403,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           <div className="auth-story-glow" aria-hidden="true" />
           <Link
             href="/"
-            aria-label="LearnMate home"
+            aria-label="rohmbic home"
             className="relative w-fit rounded-md transition-transform duration-200 hover:scale-[1.02]"
           >
             <Logo />
@@ -433,7 +433,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
         <Reveal className="flex min-h-[36rem] flex-col items-center justify-center gap-6 p-5 sm:p-10">
           <Link
             href="/"
-            aria-label="LearnMate home"
+            aria-label="rohmbic home"
             className="rounded-md transition-transform duration-200 hover:scale-[1.02] lg:hidden"
           >
             <Logo />

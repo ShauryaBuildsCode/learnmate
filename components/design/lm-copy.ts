@@ -24,7 +24,7 @@ export const COPY = {
       "Copy-pasting into a chatbot",
       "Watching someone else code",
     ],
-    resolution: "LearnMate makes you do it, and shows you exactly where you're stuck.",
+    resolution: "rohmbic makes you do it, and shows you exactly where you're stuck.",
   },
   features: { eyebrow: "Features", title: "Everything a great tutor does, from one PDF." },
   how: { eyebrow: "How it works", title: "From PDF to “I get it” in four steps." },

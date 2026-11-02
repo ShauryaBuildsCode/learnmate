@@ -21,7 +21,7 @@ export default async function SettingsPage() {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
           <p className="text-sm text-muted-foreground">
-            How LearnMate looks, sounds and keeps your account safe.
+            How rohmbic looks, sounds and keeps your account safe.
           </p>
         </div>
         <SettingsView userId={user.id} email={user.email ?? ""} uiLang={profile?.ui_lang ?? "en"} />
