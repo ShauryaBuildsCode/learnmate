@@ -221,7 +221,7 @@ export function SectionHeading({
 /** The persistent section heading and intro. It lives inside the pinned composition, so it stays put. */
 export function HowHeader() {
   return (
-    <div className="flex flex-col gap-1.5 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between lg:gap-12">
       <SectionHeading eyebrow={COPY.how.eyebrow} title={COPY.how.title} id="how-title" compact />
       <p className="m-0 max-w-md text-sm leading-6 text-ink-2 max-sm:sr-only lg:text-right">
         Four steps: upload a PDF, watch animated lessons play, try the exercise in the IDE with
@@ -564,7 +564,7 @@ export function Faq() {
             return (
               <div
                 key={item.q}
-                className="faq-row -mx-3 rounded-2xl px-3"
+                className="faq-row -mx-3 rounded-none px-3 lg:rounded-2xl"
                 data-open={active}
                 onPointerEnter={(e) => hoverOpen(e, i)}
                 onPointerLeave={hoverEnd}

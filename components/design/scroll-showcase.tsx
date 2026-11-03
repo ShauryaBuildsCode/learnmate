@@ -141,9 +141,9 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
             />
           ))}
         </div>
-        <div className="relative flex h-full flex-col justify-center gap-2 py-2 sm:gap-3 sm:py-3 lg:gap-7 lg:py-3">
+        <div className="relative flex h-full flex-col justify-center gap-5 py-2 sm:gap-6 sm:py-3 lg:gap-7 lg:py-3">
           {header}
-          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] items-center gap-2 lg:flex-none lg:items-center sm:gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:gap-12">
+          <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] items-center gap-4 lg:flex-none lg:items-center sm:gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:gap-12">
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase sm:text-xs lg:hidden">
                 <span className="brand-fill h-1.5 w-6 rounded-full" aria-hidden="true" />
@@ -245,7 +245,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
                     </span>
                   </>
                 }
-                className="h-full min-h-[18rem] sm:max-h-[34rem] lg:h-[clamp(22rem,calc(100svh-20rem),32rem)]"
+                className="h-[27rem] sm:h-[28rem] lg:h-[clamp(22rem,calc(100svh-20rem),32rem)]"
               >
                 <Swap
                   value={stage}
