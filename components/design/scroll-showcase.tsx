@@ -45,8 +45,8 @@ function LiveScene({
 }
 /** How long each stage plays before the next begins. */
 const STAGE_MS = 6500;
-/** Scene progress is quantised so React re-renders ~120 times per stage. */
-const STEPS = 60;
+/** Progress resolution: fine enough that the scene advances on every display frame (no visible stepping). */
+const STEPS = 1000;
 
 function subscribeReduced(onChange: () => void) {
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
