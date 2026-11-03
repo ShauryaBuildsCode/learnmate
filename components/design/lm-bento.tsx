@@ -455,7 +455,7 @@ function TipsVisual({ active }: TileProps) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ delay: 1.9, ...SPRING }}
       >
-        <span className="font-semibold">Groq</span> starts at 1, not 0
+        <span className="font-semibold">Tip</span> starts at 1, not 0
         <span className="font-mono text-lm-muted">0.4s</span>
       </motion.div>
     </div>
@@ -584,7 +584,7 @@ const TILES: {
   {
     id: "tips",
     title: "Instant tips while you type",
-    body: "Quick Groq tips in under two seconds, plus plain-English error translations.",
+    body: "Quick tips in under two seconds, plus plain-English error translations.",
     span: "md:col-span-6 lg:col-span-6",
     visual: (s) => <TipsVisual {...s} />,
   },

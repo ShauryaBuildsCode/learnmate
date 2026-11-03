@@ -12,7 +12,6 @@ import {
   PageSection,
   Problem,
   SectionHeading,
-  TrustStrip,
 } from "@/components/design/lm-sections";
 import { DropFromHeader } from "@/components/design/drop-from-header";
 import { ScrollShowcase } from "@/components/design/scroll-showcase";
@@ -38,7 +37,6 @@ export default async function Home() {
           primaryHref={start}
           primaryLabel={signedIn ? "Go to dashboard" : "Try it with a sample chapter"}
         />
-        <TrustStrip />
         <Problem />
 
         <PageSection id="features" labelledBy="features-title" className="lm-aura lm-aura--beam">

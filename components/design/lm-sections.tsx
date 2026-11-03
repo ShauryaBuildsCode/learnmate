@@ -34,7 +34,6 @@ import { FallingText } from "@/components/design/falling-text";
 import {
   EASE,
   GuruBubble,
-  ProviderChip,
   TypingDots,
   inView,
   reveal,
@@ -230,39 +229,6 @@ export function HowHeader() {
   );
 }
 
-/* ---------- trust strip ---------- */
-
-export function TrustStrip() {
-  return (
-    <section aria-label="Powered by" className="border-y border-line px-4 py-8 sm:px-6">
-      <motion.div
-        variants={stagger(0.08)}
-        initial="hidden"
-        whileInView="show"
-        viewport={inView}
-        className="mx-auto flex max-w-[1200px] flex-col items-start gap-6 lg:flex-row lg:items-center lg:justify-between"
-      >
-        <motion.p
-          variants={reveal}
-          className="m-0 text-xs font-medium tracking-[0.14em] text-lm-muted uppercase"
-        >
-          {COPY.trust.label}
-        </motion.p>
-        <ul className="m-0 grid w-full list-none grid-cols-2 gap-x-8 gap-y-5 p-0 lg:flex lg:w-auto lg:gap-12">
-          {COPY.trust.items.map((it) => (
-            <motion.li key={it.name} variants={reveal}>
-              <span className="block text-[22px] font-semibold tracking-[-0.02em] text-ink">
-                {it.name}
-              </span>
-              <span className="text-sm text-lm-muted">{it.role}</span>
-            </motion.li>
-          ))}
-        </ul>
-      </motion.div>
-    </section>
-  );
-}
-
 /* ---------- problem ---------- */
 
 function Word({
@@ -424,7 +390,6 @@ function GuruChat() {
           G
         </span>
         Guru
-        <ProviderChip provider="Claude" className="ml-auto" />
       </div>
       <AnimatePresence initial={false}>
         {n >= 1 && <StudentBubble key="q1" text={q1.text} />}
@@ -436,13 +401,7 @@ function GuruChat() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
           >
-            <GuruBubble
-              text={a1.text}
-              play
-              duration={reduced ? 1 : 3400}
-              badge={false}
-              className="shadow-none"
-            />
+            <GuruBubble text={a1.text} play duration={reduced ? 1 : 3400} className="shadow-none" />
           </motion.div>
         )}
         {n >= 2 && (
@@ -489,13 +448,7 @@ function GuruChat() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, ease: EASE }}
           >
-            <GuruBubble
-              text={a2.text}
-              play
-              duration={reduced ? 1 : 2000}
-              badge={false}
-              className="shadow-none"
-            />
+            <GuruBubble text={a2.text} play duration={reduced ? 1 : 2000} className="shadow-none" />
           </motion.div>
         )}
       </AnimatePresence>
@@ -755,7 +708,6 @@ export function LmFooter({ signedIn }: { signedIn: boolean }) {
           <p className="mt-3 mb-0 text-[15px] text-ink-2">
             Turn your study material into lessons you can run.
           </p>
-          <p className="mt-1 mb-0 text-sm text-lm-muted">Built in 24 hours at Equinox 2026</p>
         </div>
         <nav aria-label="Footer">
           <ul className="m-0 flex list-none flex-wrap gap-x-6 gap-y-2 p-0 text-[15px]">
@@ -780,9 +732,6 @@ export function LmFooter({ signedIn }: { signedIn: boolean }) {
           </ul>
         </nav>
       </div>
-      <p className="mx-auto mt-10 mb-0 max-w-[1200px] text-sm text-lm-muted">
-        Gemini · Claude · Groq · Supabase
-      </p>
     </footer>
   );
 }

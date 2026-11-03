@@ -10,7 +10,7 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useMotionValue, useMotionValueEvent, useScroll } from "framer-motion";
+import { useInView, useMotionValue } from "framer-motion";
 import { DeviceFrame } from "@/components/design/device-frame";
 import { FallingText } from "@/components/design/falling-text";
 import { LearningProgressStepper } from "@/components/design/learning-progress-stepper";
@@ -21,19 +21,11 @@ import { STORY_STAGES, STORY_STEPS, SUBJECT_STAGES } from "@/components/design/s
 import { cn } from "@/lib/utils";
 import type { Subject } from "@/components/design/teaching-data";
 
-/**
- * When true, scrolling up while inside the story jumps back to the start of the section in one move,
- * instead of scrubbing back through the stages. Set to false to restore normal reverse scrolling.
- */
-const SCROLL_UP_SNAPS_TO_START = true;
-
 const COUNT = STORY_STAGES.length;
 const MemoScene = memo(StoryScene);
-/** Pixels of scroll the sticky panel is pinned below the 64px site header. */
-const HEADER = 64;
-/** Boundary slack, in stage units, so hovering on a boundary never flickers between stages. */
-const HYSTERESIS = 0.04;
-/** Scene progress is quantised so React re-renders ~120 times per stage, not once per scroll event. */
+/** How long each stage plays before the next begins. */
+const STAGE_MS = 6500;
+/** Scene progress is quantised so React re-renders ~120 times per stage. */
 const STEPS = 120;
 
 function subscribeReduced(onChange: () => void) {
@@ -47,6 +39,11 @@ interface View {
   p: number;
 }
 
+/**
+ * A self-playing walkthrough. One clock drives the stage and its progress; nothing depends on scroll,
+ * so visitors can scroll straight past it. It plays only while on screen, pauses while the pointer or
+ * keyboard focus is inside it, and loops. Clicking a stage jumps there and keeps playing.
+ */
 export function ScrollShowcase({ href, header }: { href: string; header?: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
   const reduced = useSyncExternalStore(
@@ -54,38 +51,44 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
     () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
     () => false,
   );
-
-  // One authoritative progress value (0..1). Scrolling drives it; with reduced motion the stepper does.
-  const { scrollYProgress } = useScroll({ target: root, offset: [`start ${HEADER}px`, "end end"] });
-  const manual = useMotionValue(0.5 / COUNT);
-  const progress = reduced ? manual : scrollYProgress;
+  const onScreen = useInView(root, { amount: 0.25 });
+  const [engaged, setEngaged] = useState(false);
 
   const [view, setView] = useState<View>({ stage: 0, p: 0 });
-  const stageRef = useRef(0);
-  // True while this component is moving the page itself (stepper clicks, the snap), so the snap
-  // listener never reacts to its own scrolling.
-  const moving = useRef(false);
-  const moveTimer = useRef<number | undefined>(undefined);
-  const beginMove = useCallback((ms = 1100) => {
-    moving.current = true;
-    window.clearTimeout(moveTimer.current);
-    moveTimer.current = window.setTimeout(() => (moving.current = false), ms);
-  }, []);
-  // A manual subject choice belongs to the stage it was made on. Scrolling to another stage drops it,
-  // so the story always resumes from its own default and never fights the visitor mid-stage.
+  // The stepper fill follows the same clock through a motion value, so it never re-renders React.
+  const progress = useMotionValue(0.5 / COUNT);
+  // A manual subject choice belongs to the stage it was made on and is dropped when the story moves on.
   const [override, setOverride] = useState<{ stage: number; subject: Subject } | null>(null);
 
-  const sync = useCallback((v: number) => {
-    const raw = Math.min(COUNT - 1e-6, Math.max(0, v * COUNT));
-    let s = stageRef.current;
-    if (raw > s + 1 + HYSTERESIS || raw < s - HYSTERESIS) s = Math.floor(raw);
-    stageRef.current = s;
-    const p = Math.round(Math.min(1, Math.max(0, raw - s)) * STEPS) / STEPS;
-    setView((prev) => (prev.stage === s && prev.p === p ? prev : { stage: s, p }));
-  }, []);
+  const clock = useRef({ stage: 0, ms: 0 });
+  const publish = useCallback(() => {
+    const { stage, ms } = clock.current;
+    const p = Math.round(Math.min(1, ms / STAGE_MS) * STEPS) / STEPS;
+    progress.set((stage + 0.5 + (p - 0.5)) / COUNT);
+    setView((prev) => (prev.stage === stage && prev.p === p ? prev : { stage, p }));
+  }, [progress]);
 
-  useMotionValueEvent(progress, "change", sync);
-  // Reduced motion shows each stage in its finished state; the first paint syncs from the default view.
+  useEffect(() => {
+    if (reduced || !onScreen || engaged) return;
+    let raf = 0;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const dt = Math.min(now - last, 100);
+      last = now;
+      const c = clock.current;
+      c.ms += dt;
+      if (c.ms >= STAGE_MS) {
+        c.ms = 0;
+        c.stage = (c.stage + 1) % COUNT;
+      }
+      publish();
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [reduced, onScreen, engaged, publish]);
+
+  // Reduced motion shows each stage in its finished state; the stepper moves between them.
   const stage = view.stage;
   const p = reduced ? 0.95 : view.p;
   const current = STORY_STAGES[stage];
@@ -94,50 +97,22 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
 
   const select = useCallback(
     (index: number) => {
-      const target = (index + 0.5) / COUNT;
-      if (reduced) {
-        manual.set(target);
-        sync(target);
-        return;
-      }
-      const el = root.current;
-      if (!el) return;
-      const top = el.getBoundingClientRect().top + window.scrollY;
-      const range = el.offsetHeight - window.innerHeight + HEADER;
-      beginMove(1400);
-      window.scrollTo({ top: top - HEADER + range * target, behavior: "smooth" });
+      clock.current = { stage: index, ms: reduced ? STAGE_MS : 0 };
+      publish();
     },
-    [beginMove, manual, reduced, sync],
+    [publish, reduced],
   );
 
-  // Scrolling up inside the story returns to the very start of the section, then lets you leave upward.
-  useEffect(() => {
-    if (!SCROLL_UP_SNAPS_TO_START || reduced) return;
-    let last = window.scrollY;
-    const onScroll = () => {
-      const y = window.scrollY;
-      const goingUp = y < last;
-      last = y;
-      const el = root.current;
-      if (!el) return;
-      const start = el.getBoundingClientRect().top + y - HEADER;
-      if (moving.current) {
-        // The snap is finished once we arrive; stop ignoring scrolls.
-        if (Math.abs(y - start) < 3) moving.current = false;
-        return;
-      }
-      const end = start + el.offsetHeight - window.innerHeight + HEADER;
-      if (goingUp && y > start + 24 && y <= end + 4) {
-        beginMove(1200);
-        window.scrollTo({ top: start, behavior: "smooth" });
-      }
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, [beginMove, reduced]);
-
   return (
-    <div ref={root} className="story" data-static={reduced}>
+    <div
+      ref={root}
+      className="story"
+      data-static="true"
+      onPointerEnter={(e) => e.pointerType === "mouse" && setEngaged(true)}
+      onPointerLeave={(e) => e.pointerType === "mouse" && setEngaged(false)}
+      onFocusCapture={() => setEngaged(true)}
+      onBlurCapture={() => setEngaged(false)}
+    >
       <div className="story-sticky">
         <div aria-hidden="true" className="story-glows">
           {STORY_STAGES.map((st, i) => (
