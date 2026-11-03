@@ -56,8 +56,8 @@ function subscribeReduced(onChange: () => void) {
 
 /**
  * A self-playing walkthrough. One clock drives the stage and its progress; nothing depends on scroll,
- * so visitors can scroll straight past it. It plays only while on screen, pauses while the pointer or
- * keyboard focus is inside it, and loops. Clicking a stage jumps there and keeps playing.
+ * so visitors can scroll straight past it. It plays only while on screen and loops, whatever the
+ * pointer is doing. Clicking a stage jumps there and keeps playing.
  */
 export function ScrollShowcase({ href, header }: { href: string; header?: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
@@ -67,7 +67,6 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
     () => false,
   );
   const onScreen = useInView(root, { amount: 0.25 });
-  const [engaged, setEngaged] = useState(false);
 
   // Only the stage lives in React state. Progress inside a stage is a motion value that just the
   // scene subscribes to, so the shell (titles, tracker, stepper, frame) re-renders once per stage.
@@ -88,7 +87,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
   }, [progress, pMV]);
 
   useEffect(() => {
-    if (reduced || !onScreen || engaged) return;
+    if (reduced || !onScreen) return;
     let raf = 0;
     let last = performance.now();
     const tick = (now: number) => {
@@ -105,7 +104,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduced, onScreen, engaged, publish]);
+  }, [reduced, onScreen, publish]);
 
   // Reduced motion shows each stage in its finished state; the stepper moves between them.
   const current = STORY_STAGES[stage];
@@ -121,15 +120,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
   );
 
   return (
-    <div
-      ref={root}
-      className="story"
-      data-static="true"
-      onPointerEnter={(e) => e.pointerType === "mouse" && setEngaged(true)}
-      onPointerLeave={(e) => e.pointerType === "mouse" && setEngaged(false)}
-      onFocusCapture={() => setEngaged(true)}
-      onBlurCapture={() => setEngaged(false)}
-    >
+    <div ref={root} className="story" data-static="true">
       <div className="story-sticky">
         <div aria-hidden="true" className="story-glows">
           {STORY_STAGES.map((st, i) => (
