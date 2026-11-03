@@ -604,7 +604,7 @@ export function BentoGrid() {
       initial="hidden"
       whileInView="show"
       viewport={inView}
-      className="grid grid-cols-1 gap-4 md:grid-cols-6 lg:grid-cols-12 [grid-auto-flow:dense]"
+      className="grid grid-cols-1 gap-5 md:grid-cols-6 lg:grid-cols-12 [grid-auto-flow:dense]"
     >
       {TILES.map((t) => (
         <Tile key={t.id} title={t.title} body={t.body} className={t.span}>

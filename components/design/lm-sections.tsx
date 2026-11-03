@@ -204,10 +204,12 @@ export function SectionHeading({
       <h2
         id={id}
         className={cn(
-          "m-0 leading-[1.08] font-semibold tracking-[-0.03em] text-ink",
+          "m-0 font-semibold tracking-[-0.03em] text-ink",
           compact
             ? "text-[24px] text-balance sm:text-[30px] lg:text-[34px]"
             : "max-w-[18ch] text-[34px] sm:text-[44px]",
+          // After the size classes: tailwind-merge would otherwise drop it as a font-size conflict.
+          "leading-[1.08]",
         )}
       >
         <FallingText text={title} trigger="view" />
@@ -257,11 +259,7 @@ export function Problem() {
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start 75%", "end 55%"] });
   const words = COPY.problem.resolution.split(" ");
   return (
-    <section
-      ref={ref}
-      aria-label="The problem"
-      className="lm-aura lm-aura--slate px-4 py-14 sm:px-6 lg:py-[84px]"
-    >
+    <section ref={ref} aria-label="The problem" className="px-4 py-11 sm:px-6 lg:py-16">
       <div className="mx-auto max-w-[980px]">
         <motion.p
           variants={reveal}
@@ -326,7 +324,7 @@ export function PageSection({
     <section
       id={id}
       aria-labelledby={labelledBy}
-      className={cn("lm-section px-4 py-14 sm:px-6 lg:py-[84px]", className)}
+      className={cn("lm-section px-4 py-11 sm:px-6 lg:py-16", className)}
     >
       <div className="mx-auto max-w-[1200px]">{children}</div>
     </section>
@@ -383,7 +381,7 @@ function GuruChat() {
   return (
     <div
       ref={ref}
-      className="flex h-[540px] flex-col gap-3 rounded-[24px] border border-line bg-surface p-5 shadow-raised sm:p-6"
+      className="flex h-[460px] flex-col gap-3 rounded-[24px] border border-line bg-surface p-5 shadow-raised sm:p-6"
     >
       <div className="flex items-center gap-2 border-b border-line pb-3 text-sm font-semibold text-ink">
         <span className="flex size-6 items-center justify-center rounded-full bg-ink text-xs text-bg">
@@ -462,7 +460,7 @@ export function GuruSection() {
     <section
       id="guru"
       aria-labelledby="guru-title"
-      className="lm-section lm-aura lm-aura--beam px-4 py-14 sm:px-6 lg:py-[84px]"
+      className="lm-section lm-aura lm-aura--beam px-4 py-11 sm:px-6 lg:py-16"
     >
       <div className="mx-auto grid max-w-[1200px] items-center gap-12 lg:grid-cols-2 lg:gap-20">
         <div>
@@ -472,7 +470,7 @@ export function GuruSection() {
             id="guru-title"
             className="mb-7"
           />
-          <ul className="m-0 flex list-none flex-col gap-4 p-0">
+          <ul className="m-0 flex list-none flex-col gap-5 p-0">
             {COPY.guru.manifesto.map((line, i) => (
               <motion.li
                 key={line}
@@ -521,10 +519,7 @@ function MarqueeRow({ items, reverse }: { items: string[]; reverse?: boolean }) 
 
 export function Languages() {
   return (
-    <section
-      aria-label="Languages you can run"
-      className="lm-aura lm-aura--beam py-14 lg:py-[84px]"
-    >
+    <section aria-label="Languages you can run" className="lm-aura lm-aura--beam py-11 lg:py-16">
       <p className="m-0 mb-6 px-4 text-center text-xs font-medium tracking-[0.14em] text-lm-muted uppercase">
         Runs in the side-along IDE
       </p>
@@ -559,7 +554,7 @@ export function Faq() {
     <section
       id="faq"
       aria-labelledby="faq-title"
-      className="lm-section lm-aura lm-aura--slate px-4 py-14 sm:px-6 lg:py-[84px]"
+      className="lm-section lm-aura lm-aura--slate px-4 py-11 sm:px-6 lg:py-16"
     >
       <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_1.6fr] lg:gap-20">
         <SectionHeading eyebrow={COPY.faq.eyebrow} title={COPY.faq.title} id="faq-title" />
@@ -641,7 +636,7 @@ export function LmFinalCta({ href, label }: { href: string; label: string }) {
   const panel = useRef<HTMLDivElement>(null);
   const onScreen = useInView(panel, { margin: "120px" });
   return (
-    <section aria-labelledby="cta-title" className="px-4 pb-12 sm:px-6 lg:pb-[84px]">
+    <section aria-labelledby="cta-title" className="px-4 pb-10 sm:px-6 lg:pb-16">
       <motion.div
         ref={panel}
         data-active={onScreen}
@@ -649,7 +644,7 @@ export function LmFinalCta({ href, label }: { href: string; label: string }) {
         initial="hidden"
         whileInView="show"
         viewport={inView}
-        className="brand-cta relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] px-6 py-14 text-center sm:py-20"
+        className="brand-cta relative mx-auto max-w-[1200px] overflow-hidden rounded-[32px] px-6 py-11 text-center sm:py-20"
       >
         <div
           aria-hidden="true"

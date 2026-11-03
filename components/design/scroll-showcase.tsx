@@ -10,7 +10,8 @@ import {
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useInView, useMotionValue } from "framer-motion";
+import { useInView, useMotionValue, type MotionValue } from "framer-motion";
+import { useDerived } from "@/components/design/lm-kit";
 import { DeviceFrame } from "@/components/design/device-frame";
 import { FallingText } from "@/components/design/falling-text";
 import { LearningProgressStepper } from "@/components/design/learning-progress-stepper";
@@ -23,20 +24,34 @@ import type { Subject } from "@/components/design/teaching-data";
 
 const COUNT = STORY_STAGES.length;
 const MemoScene = memo(StoryScene);
+
+/** The one component that follows the clock: it re-renders as progress moves, nothing around it does. */
+function LiveScene({
+  p,
+  pMV,
+  still,
+  ...rest
+}: {
+  stage: number;
+  p?: number;
+  pMV: MotionValue<number>;
+  still: boolean;
+  href: string;
+  subject: Subject;
+  onAdvance: () => void;
+}) {
+  const live = useDerived(pMV, (v) => v);
+  return <MemoScene {...rest} p={p ?? (still ? 0.95 : live)} />;
+}
 /** How long each stage plays before the next begins. */
 const STAGE_MS = 6500;
 /** Scene progress is quantised so React re-renders ~120 times per stage. */
-const STEPS = 120;
+const STEPS = 60;
 
 function subscribeReduced(onChange: () => void) {
   const query = window.matchMedia("(prefers-reduced-motion: reduce)");
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
-}
-
-interface View {
-  stage: number;
-  p: number;
 }
 
 /**
@@ -54,7 +69,10 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
   const onScreen = useInView(root, { amount: 0.25 });
   const [engaged, setEngaged] = useState(false);
 
-  const [view, setView] = useState<View>({ stage: 0, p: 0 });
+  // Only the stage lives in React state. Progress inside a stage is a motion value that just the
+  // scene subscribes to, so the shell (titles, tracker, stepper, frame) re-renders once per stage.
+  const [stage, setStage] = useState(0);
+  const pMV = useMotionValue(0);
   // The stepper fill follows the same clock through a motion value, so it never re-renders React.
   const progress = useMotionValue(0.5 / COUNT);
   // A manual subject choice belongs to the stage it was made on and is dropped when the story moves on.
@@ -65,8 +83,9 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
     const { stage, ms } = clock.current;
     const p = Math.round(Math.min(1, ms / STAGE_MS) * STEPS) / STEPS;
     progress.set((stage + 0.5 + (p - 0.5)) / COUNT);
-    setView((prev) => (prev.stage === stage && prev.p === p ? prev : { stage, p }));
-  }, [progress]);
+    pMV.set(p);
+    setStage(stage);
+  }, [progress, pMV]);
 
   useEffect(() => {
     if (reduced || !onScreen || engaged) return;
@@ -89,8 +108,6 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
   }, [reduced, onScreen, engaged, publish]);
 
   // Reduced motion shows each stage in its finished state; the stepper moves between them.
-  const stage = view.stage;
-  const p = reduced ? 0.95 : view.p;
   const current = STORY_STAGES[stage];
   const subjectAware = SUBJECT_STAGES.includes(stage);
   const subject: Subject = override && override.stage === stage ? override.subject : "python";
@@ -124,7 +141,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
             />
           ))}
         </div>
-        <div className="relative flex h-full flex-col justify-center gap-2 py-2 sm:gap-3 sm:py-3 lg:gap-5 lg:py-3">
+        <div className="relative flex h-full flex-col justify-center gap-2 py-2 sm:gap-3 sm:py-3 lg:gap-7 lg:py-3">
           {header}
           <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] items-center gap-2 lg:flex-none lg:items-center sm:gap-4 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:grid-rows-1 lg:gap-12">
             <div className="min-w-0">
@@ -133,7 +150,7 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
                 Step {current.step + 1} of 4 · {STORY_STEPS[current.step].title}
               </p>
               <ol
-                className="relative m-0 hidden list-none flex-col gap-3 p-0 lg:flex"
+                className="relative m-0 hidden list-none flex-col gap-4 p-0 lg:flex"
                 aria-label="The four steps"
               >
                 {STORY_STEPS.map((st, i) => {
@@ -234,10 +251,12 @@ export function ScrollShowcase({ href, header }: { href: string; header?: ReactN
                   value={stage}
                   className="absolute inset-0 grid-rows-[minmax(0,1fr)]"
                   render={(v, phase, dir) => (
-                    <MemoScene
+                    <LiveScene
                       stage={v}
                       // The leaving scene freezes at the end state it was scrolled out of.
-                      p={phase === "out" ? (dir > 0 ? 1 : 0) : p}
+                      p={phase === "out" ? (dir > 0 ? 1 : 0) : undefined}
+                      pMV={pMV}
+                      still={reduced}
                       href={href}
                       subject={v === stage ? subject : "python"}
                       onAdvance={() => select(5)}

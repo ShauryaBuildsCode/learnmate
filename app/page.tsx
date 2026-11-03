@@ -52,7 +52,7 @@ export default async function Home() {
         <section
           id="how-it-works"
           aria-labelledby="how-title"
-          className="lm-section lm-aura lm-aura--slate px-4 pt-14 sm:px-6 lg:pt-[84px]"
+          className="lm-section lm-aura lm-aura--slate px-4 pt-11 sm:px-6 lg:pt-16"
         >
           <div className="mx-auto max-w-[1200px]">
             <DropFromHeader enabled={HOW_DROPS_FROM_HEADER} amount="some">

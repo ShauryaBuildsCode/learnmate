@@ -870,7 +870,7 @@ export function LmHero({
   return (
     <section
       aria-labelledby="hero-title"
-      className="relative px-4 pt-6 pb-12 sm:px-6 sm:pt-10 lg:pb-[84px]"
+      className="relative px-4 pt-6 pb-10 sm:px-6 sm:pt-10 lg:pb-14"
     >
       <div
         aria-hidden="true"
